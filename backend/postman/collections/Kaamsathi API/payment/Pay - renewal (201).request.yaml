@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  Owner renews early while the plan is still running. Saves {{paymentId3}}.
+
+  Expected: 201 {"status":"PENDING_APPROVAL", ...}
+url: '{{baseUrl}}/api/payments'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+body:
+  type: formdata
+  content:
+    - key: planId
+      type: text
+      value: '{{planId}}'
+    - key: transactionId
+      type: text
+      value: 'UPI-PM-789'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('201 Created', () => pm.response.to.have.status(201));
+      pm.collectionVariables.set('paymentId3', pm.response.json().id);
+    language: text/javascript
+order: 17900

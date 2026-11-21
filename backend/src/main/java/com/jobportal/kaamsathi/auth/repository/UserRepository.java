@@ -29,6 +29,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // SELECT * FROM users WHERE company_id = ? AND role = ? ORDER BY created_at   (team list)
     List<User> findByCompanyIdAndRoleOrderByCreatedAtAsc(UUID companyId, Role role);
 
+    // admin dashboard
+    long countByRole(Role role);
+
+    long countByStatus(UserStatus status);
+
+    // whole team of a company (owner + recruiters): SELECT * FROM users WHERE company_id = ?
+    List<User> findByCompanyId(UUID companyId);
+
+    // seats used by real recruiters: SELECT COUNT(*) FROM users WHERE company_id = ? AND role = ?
+    long countByCompanyIdAndRole(UUID companyId, Role role);
+
     // SELECT * FROM users WHERE role = ? ORDER BY created_at   (admin list: oldest = first admin on top)
     List<User> findByRoleOrderByCreatedAtAsc(Role role);
 

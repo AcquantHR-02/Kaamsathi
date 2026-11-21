@@ -83,6 +83,16 @@ public class Job {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    @Column(name = "expiry_reminded_at")
+    private Instant expiryRemindedAt;     // set by the scheduler (atomic UPDATE), only once
+
+    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(name = "employer_reply_rate")
+    private Integer employerReplyRate;    // copy of the company's score (search boost); null = neutral
+
+    @Column(name = "blocked_reason", length = 500)
+    private String blockedReason;         // only when BLOCKED (admin moderation)
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -180,6 +190,27 @@ public class Job {
         updatedAt = now;
     }
 
+    // admin moderation: hidden everywhere, company can't edit / reopen. "From which status" is checked in the service.
+    public void block(String reason, Instant now) {
+        status = JobStatus.BLOCKED;
+        blockedReason = reason;
+        if (closedAt == null) {
+            closedAt = now;
+        }
+        updatedAt = now;
+    }
+
+    // back to CLOSED (never straight to live): the company decides to reopen
+    public void unblock(Instant now) {
+        status = JobStatus.CLOSED;
+        blockedReason = null;
+        updatedAt = now;
+    }
+
+    public boolean isBlocked() {
+        return status == JobStatus.BLOCKED;
+    }
+
     public UUID getId() { return id; }
     public UUID getCompanyId() { return companyId; }
     public UUID getCreatedBy() { return createdBy; }
@@ -196,6 +227,8 @@ public class Job {
     public JobStatus getStatus() { return status; }
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getClosedAt() { return closedAt; }
+    public Instant getExpiryRemindedAt() { return expiryRemindedAt; }
+    public String getBlockedReason() { return blockedReason; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Set<UUID> getSkillIds() { return Collections.unmodifiableSet(skillIds); }  // read-only view

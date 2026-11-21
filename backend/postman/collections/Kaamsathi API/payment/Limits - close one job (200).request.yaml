@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  Closing a job frees its slot.
+
+  Expected: 200 {"status":"CLOSED", ...}
+url: '{{baseUrl}}/api/jobs/{{planJobId}}/close'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('CLOSED', () => pm.expect(pm.response.json().status).to.eql('CLOSED'));
+    language: text/javascript
+order: 17500

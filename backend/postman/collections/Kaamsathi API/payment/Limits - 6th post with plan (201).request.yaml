@@ -1,0 +1,62 @@
+$kind: http-request
+description: |-
+  Pre-request posts filler jobs until the company has 5 jobs (lifetime). Free tier would stop the 6th post, but a plan ignores the free 5: only LIVE jobs < slots count. Saves {{planJobId}}.
+
+  Expected: 201 {"status":"ACTIVE", ...}
+url: '{{baseUrl}}/api/jobs'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Sixth job with plan",
+      "description": "Plan limit test job.",
+      "categoryId": "{{appCategoryId}}",
+      "cityId": "{{appCityId}}",
+      "workMode": "ONSITE",
+      "jobType": "FULL_TIME",
+      "experienceMin": 0,
+      "skillIds": [
+        "{{appSkillId}}"
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // post filler jobs until the company has 5 all jobs; the main request is the next one
+      const v = (k) => pm.variables.get(k);   // all scopes (CLI --env-var baseUrl wins)
+      const auth = { 'Authorization': 'Bearer ' + v('appOwnerToken') };
+      const filler = {
+          url: v('baseUrl') + '/api/jobs',
+          method: 'POST',
+          header: Object.assign({ 'Content-Type': 'application/json' }, auth),
+          body: { mode: 'raw', raw: JSON.stringify({ title: 'Filler job', description: 'Uses up a slot.',
+              categoryId: v('appCategoryId'), workMode: 'REMOTE', jobType: 'INTERNSHIP', experienceMin: 0, skillIds: [v('appSkillId')] }) }
+      };
+      const postMore = (left) => {
+          if (left <= 0) return;
+          pm.sendRequest(filler, (err, res) => {
+              if (err || res.code !== 201) { console.log('filler job failed', err || res.code); return; }
+              postMore(left - 1);
+          });
+      };
+      pm.sendRequest({ url: v('baseUrl') + '/api/jobs/mine', method: 'GET', header: auth }, (err, res) => {
+          const jobs = res.json();
+          const have = jobs.length;
+          postMore(5 - have);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('201 Created (free limit does not apply with a plan)', () => pm.response.to.have.status(201));
+      pm.collectionVariables.set('planJobId', pm.response.json().id);
+    language: text/javascript
+order: 17200

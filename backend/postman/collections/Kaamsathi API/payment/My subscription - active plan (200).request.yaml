@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  After "Approve - success" the company has a plan: limits COPIED from the plan (15 slots, 5 seats after "Plans - edit"). Saves {{subEndsAt}}.
+
+  Expected: 200 {"free":false,"current":{"plan":{"id":"{{planId}}"},"jobSlots":15,"recruiterSeats":5,"status":"ACTIVE","inGracePeriod":false, ...},"next":null}
+url: '{{baseUrl}}/api/companies/me/subscription'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('paid, ACTIVE, limits copied, no renewal yet', () => {
+          pm.expect(b.free).to.eql(false);
+          pm.expect(b.current.plan.id).to.eql(pm.collectionVariables.get('planId'));
+          pm.expect(b.current.plan.name).to.eql(pm.collectionVariables.get('planName'));
+          pm.expect(b.current.jobSlots).to.eql(15);
+          pm.expect(b.current.recruiterSeats).to.eql(5);
+          pm.expect(b.current.status).to.eql('ACTIVE');
+          pm.expect(b.current.inGracePeriod).to.eql(false);
+          pm.expect(b.next).to.eql(null);
+      });
+      pm.collectionVariables.set('subEndsAt', b.current.endsAt);
+    language: text/javascript
+order: 17100

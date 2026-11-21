@@ -1,0 +1,24 @@
+$kind: http-request
+description: |-
+  Admin approves {{paymentId2}} → a subscription starts for the company (limits copied from the plan).
+
+  Expected: 200 {"status":"APPROVED","reviewedAt":"...","rejectionReason":null, ...}
+url: '{{baseUrl}}/api/admin/payments/{{paymentId2}}/approve'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('APPROVED', () => {
+          pm.expect(b.status).to.eql('APPROVED');
+          pm.expect(b.reviewedAt).to.be.a('string');
+          pm.expect(b.rejectionReason).to.eql(null);
+      });
+    language: text/javascript
+order: 16800

@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  One less than {{unreadBefore}}.
+
+  Expected: 200 {"unread": unreadBefore - 1}
+url: '{{baseUrl}}/api/notifications/unread-count'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appSeekerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('one less', () => pm.expect(pm.response.json().unread).to.eql(Number(pm.collectionVariables.get('unreadBefore')) - 1));
+    language: text/javascript
+order: 6000

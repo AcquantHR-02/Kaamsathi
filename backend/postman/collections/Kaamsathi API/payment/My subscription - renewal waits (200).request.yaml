@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  The renewal does NOT start now: it starts exactly when the current period ends ({{subEndsAt}}), so no paid day is lost.
+
+  Expected: 200 {"free":false,"current":{...},"next":{"status":"PENDING","startsAt":"{{subEndsAt}}", ...}}
+url: '{{baseUrl}}/api/companies/me/subscription'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('current unchanged, next starts at current end', () => {
+          const endsAt = pm.collectionVariables.get('subEndsAt');
+          pm.expect(b.current.endsAt).to.eql(endsAt);
+          pm.expect(b.next.status).to.eql('PENDING');
+          pm.expect(b.next.startsAt).to.eql(endsAt);
+          pm.expect(new Date(b.next.endsAt) > new Date(b.next.startsAt)).to.eql(true);
+      });
+    language: text/javascript
+order: 18100

@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  Badge number. Saves {{unreadBefore}}.
+
+  Expected: 200 {"unread": n} with n ≥ 1
+url: '{{baseUrl}}/api/notifications/unread-count'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appSeekerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const n = pm.response.json().unread;
+      pm.test('at least one unread', () => pm.expect(n).to.be.above(0));
+      pm.collectionVariables.set('unreadBefore', n);
+    language: text/javascript
+order: 4000

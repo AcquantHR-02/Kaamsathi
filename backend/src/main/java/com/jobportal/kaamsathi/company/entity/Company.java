@@ -53,6 +53,17 @@ public class Company {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;       // only when REJECTED
 
+    // employer response score (V22). Written by CompanyRepository bulk UPDATEs (daily job), read here.
+    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(name = "response_rate")
+    private Integer responseRate;         // 0–100, null = "New employer"
+
+    @Column(name = "response_basis", nullable = false)
+    private int responseBasis;            // applications counted
+
+    @Column(name = "response_score_at")
+    private Instant responseScoreAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -135,6 +146,9 @@ public class Company {
     public String getLocation() { return location; }
     public CompanyStatus getStatus() { return status; }
     public String getRejectionReason() { return rejectionReason; }
+    public Integer getResponseRate() { return responseRate; }
+    public int getResponseBasis() { return responseBasis; }
+    public Instant getResponseScoreAt() { return responseScoreAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -1,0 +1,18 @@
+$kind: http-request
+description: |-
+  Only COMPANY_OWNER.
+
+  Expected: 403 {"code":"ACCESS_DENIED", ...}
+url: '{{baseUrl}}/api/companies/me/subscription'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appSeekerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('403 Forbidden', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 17000

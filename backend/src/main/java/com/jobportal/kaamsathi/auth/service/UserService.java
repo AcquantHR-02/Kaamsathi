@@ -166,6 +166,30 @@ public class UserService {
                 .getCompanyId();
     }
 
+    // admin dashboard
+    @Transactional(readOnly = true)
+    public long countByRole(Role role) {
+        return userRepository.countByRole(role);
+    }
+
+    @Transactional(readOnly = true)
+    public long countSuspended() {
+        return userRepository.countByStatus(UserStatus.SUSPENDED);
+    }
+
+    // for notifications: everyone in the company (owner + recruiters)
+    @Transactional(readOnly = true)
+    public List<UUID> companyMemberIds(UUID companyId) {
+        return userRepository.findByCompanyId(companyId).stream().map(User::getId).toList();
+    }
+
+    // for notifications: only the owner (billing, verification) — a list, empty if none
+    @Transactional(readOnly = true)
+    public List<UUID> companyOwnerIds(UUID companyId) {
+        return userRepository.findByCompanyIdAndRoleOrderByCreatedAtAsc(companyId, Role.COMPANY_OWNER).stream()
+                .map(User::getId).toList();
+    }
+
     // for other modules (application notes): id → email for MANY users in ONE query (no N+1). Unknown ids are left out.
     @Transactional(readOnly = true)
     public Map<UUID, String> emailsByIds(Collection<UUID> ids) {

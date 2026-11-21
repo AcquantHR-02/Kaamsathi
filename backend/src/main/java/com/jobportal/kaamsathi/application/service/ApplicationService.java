@@ -6,6 +6,8 @@ import com.jobportal.kaamsathi.application.dto.ApplicationResponse;
 import com.jobportal.kaamsathi.application.dto.CompanyApplicationResponse;
 import com.jobportal.kaamsathi.application.dto.NoteResponse;
 import com.jobportal.kaamsathi.application.dto.TimelineItem;
+import com.jobportal.kaamsathi.application.event.ApplicationStatusChanged;
+import com.jobportal.kaamsathi.application.event.ApplicationSubmitted;
 import com.jobportal.kaamsathi.application.entity.Application;
 import com.jobportal.kaamsathi.application.entity.ApplicationNote;
 import com.jobportal.kaamsathi.application.entity.ApplicationStatus;
@@ -26,12 +28,14 @@ import com.jobportal.kaamsathi.job.service.JobSearchService;
 import com.jobportal.kaamsathi.job.service.JobService;
 import com.jobportal.kaamsathi.seeker.dto.ApplicantData;
 import com.jobportal.kaamsathi.seeker.service.SeekerProfileService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,13 +59,15 @@ public class ApplicationService {
     private final SeekerProfileService seekerProfileService;
     private final UserService userService;
     private final FileService fileService;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public ApplicationService(ApplicationRepository applicationRepository,
                               ApplicationStatusHistoryRepository historyRepository,
                               ApplicationNoteRepository noteRepository, JobService jobService,
                               JobSearchService jobSearchService, SeekerProfileService seekerProfileService,
-                              UserService userService, FileService fileService, Clock clock) {
+                              UserService userService, FileService fileService,
+                              ApplicationEventPublisher events, Clock clock) {
         this.applicationRepository = applicationRepository;
         this.historyRepository = historyRepository;
         this.noteRepository = noteRepository;
@@ -70,6 +76,7 @@ public class ApplicationService {
         this.seekerProfileService = seekerProfileService;
         this.userService = userService;
         this.fileService = fileService;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -94,6 +101,7 @@ public class ApplicationService {
             throw new ApiException(ErrorCode.ALREADY_APPLIED);
         }
         recordHistory(application, null, seekerId);              // timeline step 1: APPLIED
+        events.publishEvent(new ApplicationSubmitted(application.getId(), job.id(), job.companyId(), job.title()));
         return ApplicationResponse.from(application, card(jobId));
     }
 
@@ -129,6 +137,18 @@ public class ApplicationService {
                 .orElseThrow(() -> new ApiException(ErrorCode.APPLICATION_NOT_FOUND));
         return new ApplicationDetailResponse(
                 ApplicationResponse.from(application, card(application.getJobId())), timelineOf(applicationId));
+    }
+
+    // ---- admin dashboard ----
+
+    @Transactional(readOnly = true)
+    public long countAll() {
+        return applicationRepository.count();
+    }
+
+    @Transactional(readOnly = true)
+    public long countSince(Instant since) {
+        return applicationRepository.countByCreatedAtGreaterThanEqual(since);
     }
 
     // ---- company side (owner / recruiter) ----
@@ -185,6 +205,8 @@ public class ApplicationService {
                     : "Can't move from " + before + " to " + target + " (stages only move forward)");
         }
         recordHistory(application, before, userId);
+        events.publishEvent(new ApplicationStatusChanged(application.getId(), application.getSeekerId(),
+                card(application.getJobId()).title(), application.getStatus()));
         return CompanyApplicationResponse.from(application, timelineOf(applicationId), notesOf(applicationId));
     }
 

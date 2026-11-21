@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  Expected: 409 {"code":"JOB_INVALID_STATE", ...}
+url: '{{baseUrl}}/api/admin/jobs/{{jobId}}/block'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "reason": "Again"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('409 Conflict', () => pm.response.to.have.status(409));
+      pm.test('code JOB_INVALID_STATE', () => pm.expect(pm.response.json().code).to.eql('JOB_INVALID_STATE'));
+    language: text/javascript
+order: 14500

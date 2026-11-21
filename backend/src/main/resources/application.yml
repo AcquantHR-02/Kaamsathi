@@ -54,6 +54,11 @@ app:
   admin:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
+  scheduler:
+    # job expiry, 14-day auto-close, plan expiry. Spring cron = sec min hour day month weekday → every hour at :00
+    cron: "0 0 * * * *"
+    # employer response score: once a day at 02:30 (quiet time)
+    score-cron: "0 30 2 * * *"
   files:
     # Where uploaded files are kept (local disk for now; MinIO later). Relative = inside backend/
     dir: ${FILES_DIR:./uploads}

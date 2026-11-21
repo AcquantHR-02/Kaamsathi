@@ -41,7 +41,9 @@ postman/collections/Kaamsathi API/
   `appApplicationId` ← "Apply - success (201)"; `appViewedAt` ← "Open application - first open (VIEWED)";
   `appFirstResponseAt` ← "Move - skip to INTERVIEW"; `appNoteId` ← "Note - add (201)"
 - payment/: `planName`, `planNameLower`, `planId` ← "Plans - add (201)"; `paymentId` ← "Pay - success with screenshot (201)".
-  Reuses `appOwnerToken` (owner of a VERIFIED company) and `appSeekerToken` from application/
+  Reuses `appOwnerToken` (owner of a VERIFIED company) and `appSeekerToken` from application/.
+  `paymentId2` ← "Pay - again after reject (201)"; `subEndsAt` ← "My subscription - active plan (200)";
+  `planJobId` ← "Limits - 6th post with plan (201)"; `paymentId3` ← "Pay - renewal (201)"
 
 ## Upload test files
 `postman/files/` holds tiny files for upload requests (`photo.png` = real 1×1 PNG, `not-an-image.png` = text, `resume.pdf` = tiny PDF).

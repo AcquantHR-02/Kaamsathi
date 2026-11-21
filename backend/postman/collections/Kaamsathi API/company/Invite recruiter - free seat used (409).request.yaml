@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  Free tier = 1 recruiter seat. The open invite from "Invite recruiter - success" already holds it.
+
+  Expected: 409 {"code":"RECRUITER_SEATS_FULL", ...}
+url: '{{baseUrl}}/api/auth/invites'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{ownerAccessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "email": "second{{$timestamp}}@test.com"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('409 Conflict', () => pm.response.to.have.status(409));
+      pm.test('code RECRUITER_SEATS_FULL', () => pm.expect(pm.response.json().code).to.eql('RECRUITER_SEATS_FULL'));
+    language: text/javascript
+order: 14650

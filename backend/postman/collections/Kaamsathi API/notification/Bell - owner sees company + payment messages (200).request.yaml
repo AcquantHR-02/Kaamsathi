@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  Owner got: company verified, new applicant(s), payment rejected, payment approved (plan dates).
+
+  Expected: 200 items with types COMPANY_VERIFIED, APPLICATION_SUBMITTED, PAYMENT_REJECTED, PAYMENT_APPROVED
+url: '{{baseUrl}}/api/notifications?size=50'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const types = pm.response.json().items.map(n => n.type);
+      pm.test('all event kinds arrived', () => {
+          ['COMPANY_VERIFIED', 'APPLICATION_SUBMITTED', 'PAYMENT_REJECTED', 'PAYMENT_APPROVED']
+              .forEach(t => pm.expect(types).to.include(t));
+      });
+    language: text/javascript
+order: 3000

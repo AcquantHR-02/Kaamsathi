@@ -1,0 +1,7 @@
+$kind: collection
+description: |-
+  notification module: the bell (GET /api/notifications, unread-count, {id}/read, read-all).
+  Messages are made by events from earlier folders (company verified, new applicant, stage moves,
+  payment approved / rejected). Reuses {{appSeekerToken}}, {{appOwnerToken}}, {{appApplicationId}}.
+  Run after application/ and payment/.
+order: 9000

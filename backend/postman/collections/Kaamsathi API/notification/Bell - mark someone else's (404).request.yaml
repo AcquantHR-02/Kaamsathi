@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  The owner can't touch the seeker's notification → looks like it does not exist.
+
+  Expected: 404 {"code":"NOTIFICATION_NOT_FOUND", ...}
+url: '{{baseUrl}}/api/notifications/{{notificationId}}/read'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('404 Not Found', () => pm.response.to.have.status(404));
+      pm.test('code NOTIFICATION_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('NOTIFICATION_NOT_FOUND'));
+    language: text/javascript
+order: 7000

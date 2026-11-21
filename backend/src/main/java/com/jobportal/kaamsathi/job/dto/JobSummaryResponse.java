@@ -1,6 +1,7 @@
 package com.jobportal.kaamsathi.job.dto;
 
 import com.jobportal.kaamsathi.common.dto.NamedRef;
+import com.jobportal.kaamsathi.company.dto.EmployerScore;
 import com.jobportal.kaamsathi.job.entity.JobType;
 import com.jobportal.kaamsathi.job.entity.WorkMode;
 
@@ -15,6 +16,7 @@ public record JobSummaryResponse(
         UUID id,
         String title,
         NamedRef company,
+        EmployerScore employerScore,  // "Replies to X% within 4 days" or "New employer"
         NamedRef category,
         NamedRef city,              // null for REMOTE; name like "Pune, Maharashtra"
         WorkMode workMode,

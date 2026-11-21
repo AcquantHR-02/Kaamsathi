@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  Expected: 403
+url: '{{baseUrl}}/api/admin/audit-log'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{jobOwnerAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('403 Forbidden', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 15200

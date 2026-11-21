@@ -61,6 +61,9 @@ public class Application {
     @Column(name = "rating")
     private Integer rating;               // company-only 1–5, null = not rated
 
+    @Column(name = "reminder_sent_at")
+    private Instant reminderSentAt;       // day-10 reminder sent (scheduler, once)
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;            // applied at
 
@@ -136,6 +139,7 @@ public class Application {
     public Instant getViewedAt() { return viewedAt; }
     public Instant getFirstResponseAt() { return firstResponseAt; }
     public Integer getRating() { return rating; }
+    public Instant getReminderSentAt() { return reminderSentAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

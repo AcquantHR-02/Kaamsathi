@@ -8,11 +8,16 @@ import com.jobportal.kaamsathi.job.dto.JobRef;
 import com.jobportal.kaamsathi.job.dto.JobRequest;
 import com.jobportal.kaamsathi.job.dto.JobResponse;
 import com.jobportal.kaamsathi.job.entity.Job;
+import com.jobportal.kaamsathi.job.entity.JobStatus;
 import com.jobportal.kaamsathi.job.entity.WorkMode;
+import com.jobportal.kaamsathi.job.event.JobClosed;
 import com.jobportal.kaamsathi.job.repository.JobRepository;
 import com.jobportal.kaamsathi.masterdata.service.CityService;
 import com.jobportal.kaamsathi.masterdata.service.JobCategoryService;
 import com.jobportal.kaamsathi.masterdata.service.SkillService;
+import com.jobportal.kaamsathi.payment.dto.PlanLimits;
+import com.jobportal.kaamsathi.payment.service.SubscriptionService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +25,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -29,23 +35,28 @@ import java.util.UUID;
 @Service
 public class JobService {
 
-    static final int FREE_POST_LIMIT = 5;                       // free tier, lifetime (plans come in Phase 4)
+    static final int FREE_POST_LIMIT = 5;                       // free tier (no plan), lifetime
     static final Duration JOB_VALIDITY = Duration.ofDays(60);   // auto-close scheduler comes in Phase 5
 
     private final JobRepository jobRepository;
     private final CompanyService companyService;          // other modules: SERVICES only
     private final UserService userService;
+    private final SubscriptionService subscriptionService;
     private final JobCategoryService categoryService;
     private final CityService cityService;
     private final SkillService skillService;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public JobService(JobRepository jobRepository, CompanyService companyService, UserService userService,
-                      JobCategoryService categoryService, CityService cityService,
-                      SkillService skillService, Clock clock) {
+                      SubscriptionService subscriptionService, JobCategoryService categoryService,
+                      CityService cityService, SkillService skillService,
+                      ApplicationEventPublisher events, Clock clock) {
+        this.events = events;
         this.jobRepository = jobRepository;
         this.companyService = companyService;
         this.userService = userService;
+        this.subscriptionService = subscriptionService;
         this.categoryService = categoryService;
         this.cityService = cityService;
         this.skillService = skillService;
@@ -76,19 +87,22 @@ public class JobService {
 
     /**
      * Owner or recruiter posts a job for THEIR company.
-     * 1. company exists + VERIFIED (409)   2. free posts left (409)   3. category / city / skills valid (400)
+     * 1. company exists + VERIFIED (409)   2. plan slot / free post left (409)   3. category / city / skills valid (400)
      * → ACTIVE, expires in 60 days.
      */
     @Transactional
     public JobResponse create(UUID userId, JobRequest request) {
         UUID companyId = companyService.requireVerifiedCompany(userId);   // from DB, not the token
+        Instant now = clock.instant();
 
-        if (jobRepository.countByCompanyId(companyId) >= FREE_POST_LIMIT) {
-            throw new ApiException(ErrorCode.FREE_JOB_LIMIT_REACHED);
+        Optional<PlanLimits> plan = subscriptionService.currentLimits(companyId);
+        if (plan.isPresent()) {
+            checkFreeSlot(companyId, plan.get(), now);                      // plan: live jobs < slots
+        } else if (jobRepository.countByCompanyId(companyId) >= FREE_POST_LIMIT) {
+            throw new ApiException(ErrorCode.FREE_JOB_LIMIT_REACHED);      // free: 5 posts, lifetime
         }
         checkMasterdata(request);
 
-        Instant now = clock.instant();
         Job job = new Job(
                 UUID.randomUUID(),
                 companyId,
@@ -156,6 +170,7 @@ public class JobService {
             throw new ApiException(ErrorCode.JOB_INVALID_STATE, "Only an active job can be closed");
         }
         job.close(clock.instant());
+        events.publishEvent(new JobClosed(job.getId(), job.getCompanyId(), job.getTitle()));   // waiting apps close
         return JobResponse.from(job);
     }
 
@@ -170,11 +185,24 @@ public class JobService {
         if (job.isPastExpiry(now)) {
             throw new ApiException(ErrorCode.JOB_INVALID_STATE, "This job's 60 days are over; it can't be reopened");
         }
+        // plan: reopening takes a slot again. Free tier: nothing to check (the job was already counted when posted).
+        Optional<PlanLimits> plan = subscriptionService.currentLimits(job.getCompanyId());
+        if (plan.isPresent()) {
+            checkFreeSlot(job.getCompanyId(), plan.get(), now);
+        }
         job.reopen(now);
         return JobResponse.from(job);
     }
 
     // ---- helpers ----
+
+    // paid plan: number of LIVE jobs must stay below the plan's job slots
+    private void checkFreeSlot(UUID companyId, PlanLimits plan, Instant now) {
+        long live = jobRepository.countByCompanyIdAndStatusAndExpiresAtAfter(companyId, JobStatus.ACTIVE, now);
+        if (live >= plan.jobSlots()) {
+            throw new ApiException(ErrorCode.JOB_SLOTS_FULL);
+        }
+    }
 
     // the job must belong to the user's company (from DB). Unknown id, other company or no company → 404.
     private Job findOwnJob(UUID userId, UUID jobId) {

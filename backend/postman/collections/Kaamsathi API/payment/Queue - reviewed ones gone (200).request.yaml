@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  Approved / rejected payments leave the queue.
+
+  Expected: 200, list without {{paymentId}} and {{paymentId2}}
+url: '{{baseUrl}}/api/admin/payments/pending'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const ids = pm.response.json().map(p => p.id);
+      pm.test('both reviewed payments gone', () => {
+          pm.expect(ids).to.not.include(pm.collectionVariables.get('paymentId'));
+          pm.expect(ids).to.not.include(pm.collectionVariables.get('paymentId2'));
+      });
+    language: text/javascript
+order: 16900
