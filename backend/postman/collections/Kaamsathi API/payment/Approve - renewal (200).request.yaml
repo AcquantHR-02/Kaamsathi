@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  Admin approves the renewal.
+
+  Expected: 200 {"status":"APPROVED", ...}
+url: '{{baseUrl}}/api/admin/payments/{{paymentId3}}/approve'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('APPROVED', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));
+    language: text/javascript
+order: 18000

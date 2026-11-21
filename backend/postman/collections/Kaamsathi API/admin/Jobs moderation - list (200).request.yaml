@@ -1,0 +1,20 @@
+$kind: http-request
+description: |-
+  All jobs of every company, newest first. Contains {{jobId}} from job/.
+
+  Expected: 200 {"items":[...], ...}
+url: '{{baseUrl}}/api/admin/jobs?size=50'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('contains the job/ folder job', () =>
+          pm.expect(pm.response.json().items.map(j => j.id)).to.include(pm.collectionVariables.get('jobId')));
+    language: text/javascript
+order: 14100

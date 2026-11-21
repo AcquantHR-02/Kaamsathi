@@ -1,0 +1,33 @@
+$kind: http-request
+description: |-
+  After a reject the owner may pay again (no screenshot this time). Saves {{paymentId2}}.
+
+  Expected: 201 {"status":"PENDING_APPROVAL","screenshotFileId":null, ...}
+url: '{{baseUrl}}/api/payments'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+body:
+  type: formdata
+  content:
+    - key: planId
+      type: text
+      value: '{{planId}}'
+    - key: transactionId
+      type: text
+      value: 'UPI-PM-456'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('201 Created', () => pm.response.to.have.status(201));
+      const b = pm.response.json();
+      pm.test('pending, no screenshot', () => {
+          pm.expect(b.status).to.eql('PENDING_APPROVAL');
+          pm.expect(b.screenshotFileId).to.eql(null);
+      });
+      pm.collectionVariables.set('paymentId2', b.id);
+    language: text/javascript
+order: 16700

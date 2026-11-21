@@ -1,0 +1,33 @@
+$kind: http-request
+description: |-
+  Admin rejects {{paymentId}}. Reason is trimmed. The owner may now send a new request.
+
+  Expected: 200 {"status":"REJECTED","rejectionReason":"Transaction ID not found","reviewedAt":"...", ...}
+url: '{{baseUrl}}/api/admin/payments/{{paymentId}}/reject'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "reason": "  Transaction ID not found  "
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('REJECTED with trimmed reason', () => {
+          pm.expect(b.status).to.eql('REJECTED');
+          pm.expect(b.rejectionReason).to.eql('Transaction ID not found');
+          pm.expect(b.reviewedAt).to.be.a('string');
+      });
+    language: text/javascript
+order: 16500

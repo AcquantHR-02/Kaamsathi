@@ -1,0 +1,20 @@
+$kind: http-request
+description: |-
+  Bell of the job owner has JOB_BLOCKED.
+
+  Expected: 200 items include type JOB_BLOCKED
+url: '{{baseUrl}}/api/notifications'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{jobOwnerAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('JOB_BLOCKED message', () =>
+          pm.expect(pm.response.json().items.map(n => n.type)).to.include('JOB_BLOCKED'));
+    language: text/javascript
+order: 14850

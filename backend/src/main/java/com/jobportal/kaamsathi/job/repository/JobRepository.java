@@ -5,6 +5,7 @@ import com.jobportal.kaamsathi.job.entity.JobStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,6 +22,49 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     // SELECT COUNT(*) FROM jobs WHERE company_id = ?   (free quota: posts used, lifetime — closed jobs count too)
     long countByCompanyId(UUID companyId);
 
+    // SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = ? AND expires_at > ?
+    // (paid plan: slots in use = LIVE jobs right now; a past-expiry job frees its slot even before the scheduler)
+    long countByCompanyIdAndStatusAndExpiresAtAfter(UUID companyId, JobStatus status, Instant now);
+
+    // ---- scheduler (Phase 5.3) ----
+
+    // live jobs whose 60 days are over (index (status, expires_at)); a batch per run
+    List<Job> findTop500ByStatusAndExpiresAtLessThanEqual(JobStatus status, Instant now);
+
+    // live jobs ending soon that were not reminded yet
+    List<Job> findTop500ByStatusAndExpiresAtBetweenAndExpiryRemindedAtIsNull(JobStatus status, Instant from, Instant to);
+
+    // ACTIVE → EXPIRED in ONE atomic UPDATE: 1 = we expired it; 0 = the company closed it meanwhile
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE Job j SET j.status = com.jobportal.kaamsathi.job.entity.JobStatus.EXPIRED, j.updatedAt = :now
+            WHERE j.id = :id AND j.status = com.jobportal.kaamsathi.job.entity.JobStatus.ACTIVE
+              AND j.expiresAt <= :now""")
+    int expireIfDue(@Param("id") UUID id, @Param("now") Instant now);
+
+    // reminder flag, set only once (two scheduler runs at the same moment → only one gets 1)
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Job j SET j.expiryRemindedAt = :now WHERE j.id = :id AND j.expiryRemindedAt IS NULL")
+    int markExpiryReminded(@Param("id") UUID id, @Param("now") Instant now);
+
+    // ---- admin (Phase 5.5) ----
+
+    // moderation list, newest first; status null = all
+    @Query("SELECT j FROM Job j WHERE (:status IS NULL OR j.status = :status) ORDER BY j.createdAt DESC")
+    Page<Job> findForAdmin(@Param("status") JobStatus status, Pageable pageable);
+
+    // dashboard: live jobs right now
+    long countByStatusAndExpiresAtAfter(JobStatus status, Instant now);
+
+    // ---- employer score copy (Phase 5.4): all jobs neutral, then each scored company's rate ----
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE Job j SET j.employerReplyRate = NULL")
+    int resetEmployerReplyRates();
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE Job j SET j.employerReplyRate = :rate WHERE j.companyId = :companyId")
+    int setEmployerReplyRate(@Param("companyId") UUID companyId, @Param("rate") Integer rate);
+
     // SELECT * FROM jobs WHERE id = ? AND company_id = ?   (a job of ANOTHER company is simply "not found")
     Optional<Job> findByIdAndCompanyId(UUID id, UUID companyId);
 
@@ -35,7 +79,10 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
      * Every filter has the form "(:x IS NULL OR ...)": a missing filter switches itself off.
      * ids / enums are passed as Strings (columns are CHAR / VARCHAR).
      * q = '' means "no keyword"; otherwise q is already in BOOLEAN MODE syntax (built in JobSearchService).
-     * Sort: best keyword match first, then newest. Spring adds LIMIT/OFFSET from the Pageable.
+     * Sort: best keyword match first (× 0.9–1.1 by employer reply rate; new employer = 50% = ×1.0, neutral),
+     * then newest DAY; inside the same day a better-replying employer first; then newest.
+     * = a GENTLE boost: it never beats a clearly better keyword match or a newer day.
+     * Spring adds LIMIT/OFFSET from the Pageable.
      */
     String SEARCH_WHERE = """
             FROM jobs j
@@ -57,7 +104,10 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     @Query(nativeQuery = true,
             value = "SELECT j.* " + SEARCH_WHERE + """
                     ORDER BY CASE WHEN :q = '' THEN 0
-                                  ELSE MATCH(j.title, j.description) AGAINST (:q IN BOOLEAN MODE) END DESC,
+                                  ELSE MATCH(j.title, j.description) AGAINST (:q IN BOOLEAN MODE)
+                                       * (0.9 + 0.2 * COALESCE(j.employer_reply_rate, 50) / 100) END DESC,
+                             DATE(j.created_at) DESC,
+                             COALESCE(j.employer_reply_rate, 50) DESC,
                              j.created_at DESC
                     """,
             countQuery = "SELECT COUNT(*) " + SEARCH_WHERE)

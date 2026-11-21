@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +20,9 @@ import java.util.UUID;
  * Only the application module touches the `applications` table.
  */
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
+
+    // admin dashboard: applications sent since a moment
+    long countByCreatedAtGreaterThanEqual(Instant since);
 
     // already applied? (fast path; the UNIQUE key is the real guard)
     boolean existsByJobIdAndSeekerId(UUID jobId, UUID seekerId);
@@ -60,4 +65,56 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
             WHERE a.id = :id AND a.companyId = :companyId
               AND a.status = com.jobportal.kaamsathi.application.entity.ApplicationStatus.APPLIED""")
     int markViewed(UUID id, UUID companyId, Instant now);
+
+    // ---- scheduler (Phase 5.3). "Waiting" = APPLIED or VIEWED: the recruiter has not replied yet ----
+
+    // waiting applications sent on/before `cutoff` (index (status, created_at)); a batch per run
+    List<Application> findTop500ByStatusInAndCreatedAtLessThanEqual(Collection<ApplicationStatus> statuses,
+                                                                    Instant cutoff);
+
+    // same, but only those not reminded yet
+    List<Application> findTop500ByStatusInAndCreatedAtLessThanEqualAndReminderSentAtIsNull(
+            Collection<ApplicationStatus> statuses, Instant cutoff);
+
+    // waiting applications of one job (job closed / expired)
+    List<Application> findByJobIdAndStatusIn(UUID jobId, Collection<ApplicationStatus> statuses);
+
+    // waiting → CLOSED_NO_RESPONSE in ONE atomic UPDATE: 0 = the recruiter / seeker acted meanwhile (keep theirs)
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE Application a
+            SET a.status = com.jobportal.kaamsathi.application.entity.ApplicationStatus.CLOSED_NO_RESPONSE,
+                a.updatedAt = :now
+            WHERE a.id = :id
+              AND a.status IN (com.jobportal.kaamsathi.application.entity.ApplicationStatus.APPLIED,
+                               com.jobportal.kaamsathi.application.entity.ApplicationStatus.VIEWED)""")
+    int closeIfWaiting(UUID id, Instant now);
+
+    // day-10 reminder flag, only once and only while still waiting
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE Application a SET a.reminderSentAt = :now
+            WHERE a.id = :id AND a.reminderSentAt IS NULL
+              AND a.status IN (com.jobportal.kaamsathi.application.entity.ApplicationStatus.APPLIED,
+                               com.jobportal.kaamsathi.application.entity.ApplicationStatus.VIEWED)""")
+    int markReminderSent(UUID id, Instant now);
+
+    /*
+     * Employer response score (Phase 5.4), per company, applications sent between :from and :to
+     * (from = 90 days ago, to = 4 days ago → too-new applications are not judged yet).
+     * Withdrawn ones don't count. "Replied" = first_response_at within 4 days of applying
+     * (a move or a reject; opening alone never sets it). Auto-closed ones have no first_response_at → "no reply".
+     * CAST: MySQL SUM gives a DECIMAL; SIGNED makes it a plain whole number for Long.
+     */
+    @Query(nativeQuery = true, value = """
+            SELECT a.company_id AS companyId,
+                   COUNT(*) AS basis,
+                   CAST(SUM(CASE WHEN a.first_response_at IS NOT NULL
+                                  AND a.first_response_at <= a.created_at + INTERVAL 4 DAY
+                             THEN 1 ELSE 0 END) AS SIGNED) AS replied
+            FROM applications a
+            WHERE a.created_at >= :from AND a.created_at <= :to
+              AND a.status <> 'WITHDRAWN'
+            GROUP BY a.company_id""")
+    List<CompanyReplyStats> replyStats(Instant from, Instant to);
 }

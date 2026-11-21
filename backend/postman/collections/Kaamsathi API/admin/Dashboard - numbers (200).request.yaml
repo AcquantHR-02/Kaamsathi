@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  Counts from every module (through their services).
+
+  Expected: 200 {"users":{"seekers":n,"companyOwners":n,"recruiters":n,"admins":n,"suspended":n},"companies":{...},"jobs":{"live":n},"applications":{...},"payments":{...},"generatedAt":"..."}
+url: '{{baseUrl}}/api/admin/dashboard'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const d = pm.response.json();
+      pm.test('all groups present, sensible numbers', () => {
+          pm.expect(d.users.admins).to.be.at.least(1);
+          pm.expect(d.users.seekers).to.be.at.least(1);
+          pm.expect(d.companies.verified).to.be.at.least(1);
+          pm.expect(d.jobs.live).to.be.at.least(1);
+          pm.expect(d.applications.total).to.be.at.least(0);
+          pm.expect(d.payments.approvedRupees).to.be.at.least(0);
+          pm.expect(d.generatedAt).to.be.a('string');
+      });
+    language: text/javascript
+order: 15300

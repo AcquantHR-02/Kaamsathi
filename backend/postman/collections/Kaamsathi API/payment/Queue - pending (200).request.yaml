@@ -1,0 +1,29 @@
+$kind: http-request
+description: |-
+  Admin queue, oldest first. Contains {{paymentId}} (PENDING_APPROVAL) with the plan name.
+
+  Expected: 200 [{"id":"{{paymentId}}","plan":{"name":"PmPlan..."},"status":"PENDING_APPROVAL", ...}]
+url: '{{baseUrl}}/api/admin/payments/pending'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const list = pm.response.json();
+      const mine = list.find(p => p.id === pm.collectionVariables.get('paymentId'));
+      pm.test('contains our pending payment with plan name', () => {
+          pm.expect(mine).to.be.an('object');
+          pm.expect(mine.status).to.eql('PENDING_APPROVAL');
+          pm.expect(mine.plan.name).to.eql(pm.collectionVariables.get('planName'));
+      });
+      pm.test('all pending, oldest first', () => {
+          list.forEach(p => pm.expect(p.status).to.eql('PENDING_APPROVAL'));
+          for (let i = 1; i < list.length; i++) pm.expect(list[i - 1].createdAt <= list[i].createdAt).to.eql(true);
+      });
+    language: text/javascript
+order: 16200

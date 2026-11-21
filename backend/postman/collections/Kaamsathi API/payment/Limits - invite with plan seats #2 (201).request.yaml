@@ -1,0 +1,27 @@
+$kind: http-request
+description: |-
+  The plan gives 5 recruiter seats (free = 1). This 2nd open invite would be blocked on the free tier.
+
+  Expected: 201 {"status":"PENDING", ...}
+url: '{{baseUrl}}/api/auth/invites'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "email": "planrec2{{$timestamp}}@test.com"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('201 Created', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 17800

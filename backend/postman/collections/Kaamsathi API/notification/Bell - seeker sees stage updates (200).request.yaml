@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  The recruiter moved the seeker's application in application/ → APPLICATION_STATUS_CHANGED messages, newest first, unread.
+  Saves {{notificationId}}.
+
+  Expected: 200 {"items":[{"type":"APPLICATION_STATUS_CHANGED","link":"/seeker/applications/{{appApplicationId}}","read":false, ...}], ...}
+url: '{{baseUrl}}/api/notifications'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appSeekerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const items = pm.response.json().items;
+      const mine = items.filter(n => n.type === 'APPLICATION_STATUS_CHANGED');
+      pm.test('stage updates with link to the application, unread', () => {
+          pm.expect(mine.length).to.be.above(0);
+          pm.expect(mine.map(n => n.link)).to.include('/seeker/applications/' + pm.collectionVariables.get('appApplicationId'));
+          pm.expect(mine[0].read).to.eql(false);
+      });
+      pm.test('newest first', () => {
+          for (let i = 1; i < items.length; i++) pm.expect(items[i - 1].createdAt >= items[i].createdAt).to.eql(true);
+      });
+      pm.collectionVariables.set('notificationId', mine[0].id);
+    language: text/javascript
+order: 2000

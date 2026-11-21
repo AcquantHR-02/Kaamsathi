@@ -1,6 +1,7 @@
 package com.jobportal.kaamsathi.job.service;
 
 import com.jobportal.kaamsathi.common.dto.NamedRef;
+import com.jobportal.kaamsathi.company.dto.EmployerScore;
 import com.jobportal.kaamsathi.common.dto.PageResponse;
 import com.jobportal.kaamsathi.common.exception.ApiException;
 import com.jobportal.kaamsathi.common.exception.ErrorCode;
@@ -123,6 +124,7 @@ public class JobSearchService {
         Set<UUID> skillIds = jobs.stream().flatMap(j -> j.getSkillIds().stream()).collect(Collectors.toSet());
         return new Names(
                 companyService.namesByIds(companyIds),
+                companyService.scoresByIds(companyIds),
                 categoryService.namesByIds(categoryIds),
                 cityService.labelsByIds(cityIds),
                 skillService.namesByIds(skillIds));
@@ -137,6 +139,7 @@ public class JobSearchService {
                 j.getId(),
                 j.getTitle(),
                 new NamedRef(j.getCompanyId(), n.companies().get(j.getCompanyId())),
+                n.scores().getOrDefault(j.getCompanyId(), EmployerScore.of(null, 0)),
                 new NamedRef(j.getCategoryId(), n.categories().get(j.getCategoryId())),
                 j.getCityId() == null ? null : new NamedRef(j.getCityId(), n.cities().get(j.getCityId())),
                 j.getWorkMode(),
@@ -154,8 +157,8 @@ public class JobSearchService {
         return id == null ? null : id.toString();
     }
 
-    // the 4 id → name maps for one page
-    private record Names(Map<UUID, String> companies, Map<UUID, String> categories,
+    // the id → name maps (+ company score badges) for one page
+    private record Names(Map<UUID, String> companies, Map<UUID, EmployerScore> scores, Map<UUID, String> categories,
                          Map<UUID, String> cities, Map<UUID, String> skills) {
     }
 }

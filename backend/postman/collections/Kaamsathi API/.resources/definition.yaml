@@ -239,3 +239,21 @@ variables:
   - key: paymentId
     value: ''
     description: 'Filled by payment/"Pay - success with screenshot (201)"'
+  - key: paymentId2
+    value: ''
+    description: 'Filled by payment/"Pay - again after reject (201)" (then approved)'
+  - key: subEndsAt
+    value: ''
+    description: 'Filled by payment/"My subscription - active plan (200)" (end of the current period)'
+  - key: planJobId
+    value: ''
+    description: 'Filled by payment/"Limits - 6th post with plan (201)"'
+  - key: paymentId3
+    value: ''
+    description: 'Filled by payment/"Pay - renewal (201)"'
+  - key: notificationId
+    value: ''
+    description: 'Filled by notification/"Bell - seeker sees stage updates (200)"'
+  - key: unreadBefore
+    value: ''
+    description: 'Filled by notification/"Bell - unread count (200)"'

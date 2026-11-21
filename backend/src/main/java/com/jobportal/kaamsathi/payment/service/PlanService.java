@@ -106,6 +106,12 @@ public class PlanService {
                 .orElseThrow(() -> new ApiException(ErrorCode.PLAN_NOT_FOUND));
     }
 
+    // admin approves a payment: the plan must exist, but may be hidden by now (the owner already paid for it)
+    @Transactional(readOnly = true)
+    Plan require(UUID id) {
+        return find(id);
+    }
+
     // id → name for lists (billing history, admin queue); hidden plans too (old requests keep their name)
     @Transactional(readOnly = true)
     Map<UUID, String> namesByIds(Collection<UUID> ids) {

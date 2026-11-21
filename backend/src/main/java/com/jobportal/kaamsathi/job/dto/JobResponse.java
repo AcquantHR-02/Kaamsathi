@@ -31,6 +31,7 @@ public record JobResponse(
         JobStatus status,
         Instant expiresAt,
         Instant closedAt,         // null unless CLOSED / EXPIRED
+        String blockedReason,     // null unless BLOCKED by the admin
         Instant createdAt
 ) {
 
@@ -54,6 +55,7 @@ public record JobResponse(
                 j.getStatus(),
                 j.getExpiresAt(),
                 j.getClosedAt(),
+                j.getBlockedReason(),
                 j.getCreatedAt());
     }
 }

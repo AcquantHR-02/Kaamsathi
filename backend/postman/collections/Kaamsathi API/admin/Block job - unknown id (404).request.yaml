@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  Expected: 404 {"code":"JOB_NOT_FOUND", ...}
+url: '{{baseUrl}}/api/admin/jobs/00000000-0000-0000-0000-000000000000/block'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+body:
+  type: json
+  content: |-
+    {
+      "reason": "Fake job"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('404 Not Found', () => pm.response.to.have.status(404));
+      pm.test('code JOB_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('JOB_NOT_FOUND'));
+    language: text/javascript
+order: 14300

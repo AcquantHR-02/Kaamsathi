@@ -1,0 +1,31 @@
+$kind: http-request
+description: |-
+  Only SUCCESSFUL admin writes are stored: block + unblock of {{jobId}} (not the 400 / 409 tries), newest first, with the admin email.
+
+  Expected: 200 {"items":[{"method":"POST","path":"/api/admin/jobs/{{jobId}}/unblock","targetId":"{{jobId}}","status":200,"adminEmail":"{{adminEmail}}"}, {... /block ...}]}
+url: '{{baseUrl}}/api/admin/audit-log?targetId={{jobId}}'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const items = pm.response.json().items;
+      pm.test('exactly block then unblock, newest first', () => {
+          pm.expect(items.length).to.eql(2);
+          pm.expect(items[0].path).to.include('/unblock');
+          pm.expect(items[1].path).to.include('/block');
+      });
+      pm.test('who + target', () => {
+          items.forEach(i => {
+              pm.expect(i.adminEmail).to.eql(pm.variables.get('adminEmail'));
+              pm.expect(i.targetId).to.eql(pm.collectionVariables.get('jobId'));
+              pm.expect(i.status).to.eql(200);
+          });
+      });
+    language: text/javascript
+order: 15100

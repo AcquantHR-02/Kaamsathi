@@ -9,12 +9,19 @@ import com.jobportal.kaamsathi.company.dto.CompanyResponse;
 import com.jobportal.kaamsathi.company.dto.RegisterCompanyRequest;
 import com.jobportal.kaamsathi.company.entity.Company;
 import com.jobportal.kaamsathi.company.entity.CompanyStatus;
+import com.jobportal.kaamsathi.company.dto.EmployerScore;
+import com.jobportal.kaamsathi.company.dto.ResponseScore;
+import com.jobportal.kaamsathi.company.event.CompanyRejected;
+import com.jobportal.kaamsathi.company.event.CompanyVerified;
+import com.jobportal.kaamsathi.company.event.ResponseScoresUpdated;
 import com.jobportal.kaamsathi.company.repository.CompanyRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -29,11 +36,14 @@ public class CompanyService implements CompanyVerificationCheck {
 
     private final CompanyRepository companyRepository;
     private final UserService userService;      // auth's SERVICE, never its repository
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    public CompanyService(CompanyRepository companyRepository, UserService userService, Clock clock) {
+    public CompanyService(CompanyRepository companyRepository, UserService userService,
+                          ApplicationEventPublisher events, Clock clock) {
         this.companyRepository = companyRepository;
         this.userService = userService;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -165,6 +175,7 @@ public class CompanyService implements CompanyVerificationCheck {
     public CompanyResponse verify(UUID companyId) {
         Company company = findPending(companyId);
         company.verify(clock.instant());              // dirty checking writes the UPDATE
+        events.publishEvent(new CompanyVerified(company.getId(), company.getName()));   // delivered after commit
         return CompanyResponse.from(company);
     }
 
@@ -173,6 +184,7 @@ public class CompanyService implements CompanyVerificationCheck {
     public CompanyResponse reject(UUID companyId, String reason) {
         Company company = findPending(companyId);
         company.reject(reason.trim(), clock.instant());
+        events.publishEvent(new CompanyRejected(company.getId(), company.getName(), company.getRejectionReason()));
         return CompanyResponse.from(company);
     }
 
@@ -215,5 +227,33 @@ public class CompanyService implements CompanyVerificationCheck {
     public Map<UUID, String> namesByIds(Collection<UUID> ids) {
         return companyRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(Company::getId, Company::getName));
+    }
+
+    // admin dashboard
+    @Transactional(readOnly = true)
+    public long countByStatus(CompanyStatus status) {
+        return companyRepository.countByStatus(status);
+    }
+
+    // for the job module (job cards): company id → public response score badge
+    @Transactional(readOnly = true)
+    public Map<UUID, EmployerScore> scoresByIds(Collection<UUID> ids) {
+        return companyRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Company::getId,
+                        c -> EmployerScore.of(c.getResponseRate(), c.getResponseBasis())));
+    }
+
+    /**
+     * For the application module's daily job: replace ALL scores at once (companies not in the list
+     * become "New employer"), then tell the job module (same transaction) so search uses the new rates.
+     */
+    @Transactional
+    public void saveResponseScores(List<ResponseScore> scores) {
+        Instant now = clock.instant();
+        companyRepository.resetResponseScores(now);
+        for (ResponseScore s : scores) {
+            companyRepository.setResponseScore(s.companyId(), s.ratePercent(), s.basis(), now);
+        }
+        events.publishEvent(new ResponseScoresUpdated(scores));
     }
 }

@@ -2,6 +2,8 @@ package com.jobportal.kaamsathi.auth.service;
 
 import com.jobportal.kaamsathi.auth.dto.InviteResponse;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
+import com.jobportal.kaamsathi.auth.event.RecruiterInvited;
+import com.jobportal.kaamsathi.auth.entity.InviteStatus;
 import com.jobportal.kaamsathi.auth.entity.RecruiterInvite;
 import com.jobportal.kaamsathi.auth.entity.User;
 import com.jobportal.kaamsathi.auth.entity.UserStatus;
@@ -11,9 +13,8 @@ import com.jobportal.kaamsathi.common.exception.ApiException;
 import com.jobportal.kaamsathi.common.exception.ErrorCode;
 import com.jobportal.kaamsathi.common.security.Role;
 import com.jobportal.kaamsathi.common.util.SecureTokens;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,23 +33,27 @@ import java.util.UUID;
 @Service
 public class InviteService {
 
-    private static final Logger log = LoggerFactory.getLogger(InviteService.class);
     private static final Duration INVITE_TTL = Duration.ofDays(7);
 
     private final RecruiterInviteRepository inviteRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CompanyVerificationCheck companyCheck;   // implemented by the company module
+    private final RecruiterSeatLimit seatLimit;            // implemented by the payment module
+    private final ApplicationEventPublisher events;
     private final Clock clock;
     private final String frontendUrl;
 
     public InviteService(RecruiterInviteRepository inviteRepository, UserRepository userRepository,
-                         PasswordEncoder passwordEncoder, CompanyVerificationCheck companyCheck, Clock clock,
+                         PasswordEncoder passwordEncoder, CompanyVerificationCheck companyCheck,
+                         RecruiterSeatLimit seatLimit, ApplicationEventPublisher events, Clock clock,
                          @Value("${app.frontend-url}") String frontendUrl) {
+        this.events = events;
         this.inviteRepository = inviteRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.companyCheck = companyCheck;
+        this.seatLimit = seatLimit;
         this.clock = clock;
         this.frontendUrl = frontendUrl;
     }
@@ -60,8 +65,8 @@ public class InviteService {
     /**
      * Owner invites a recruiter. Owner must have a company, else 409 COMPANY_REQUIRED;
      * it must be VERIFIED, else 409 COMPANY_NOT_VERIFIED.
+     * Seats full (recruiters + open invites ≥ limit; free 1, plan = its seats) → 409 RECRUITER_SEATS_FULL.
      * Email already has an account → 409. Link valid 7 days, logged to the console for now.
-     * TODO Phase 2/4: check the recruiter seat limit (free = 1) from the payment module before inviting.
      */
     @Transactional
     public InviteResult invite(UUID ownerId, String rawEmail) {
@@ -76,20 +81,27 @@ public class InviteService {
             throw new ApiException(ErrorCode.COMPANY_NOT_VERIFIED);
         }
 
+        // seats: an open invite holds a seat too (else the owner could send 10 invites on a 1-seat plan)
+        Instant now = Instant.now(clock);
+        UUID companyId = owner.getCompanyId();
+        long used = userRepository.countByCompanyIdAndRole(companyId, Role.RECRUITER)
+                + inviteRepository.countByCompanyIdAndStatusAndExpiresAtAfter(companyId, InviteStatus.PENDING, now);
+        if (used >= seatLimit.seatLimit(companyId)) {
+            throw new ApiException(ErrorCode.RECRUITER_SEATS_FULL);
+        }
+
         String email = rawEmail.trim().toLowerCase(Locale.ROOT);
         if (userRepository.existsByEmail(email)) {
             throw new ApiException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         String token = SecureTokens.newToken();
-        Instant now = Instant.now(clock);
         RecruiterInvite invite = inviteRepository.save(new RecruiterInvite(
                 UUID.randomUUID(), email, owner.getCompanyId(), owner.getId(),
                 SecureTokens.sha256(token), now.plus(INVITE_TTL), now));
 
-        // DEV ONLY: stands in for a real email until the notification module exists
-        log.info("EMAIL (dev) to {}: you are invited as a recruiter -> {}/accept-invite?token={}",
-                email, frontendUrl, token);
+        // email goes out AFTER commit (notification module listens); no email if this transaction fails
+        events.publishEvent(new RecruiterInvited(email, frontendUrl + "/accept-invite?token=" + token));
         return new InviteResult(InviteResponse.from(invite), token);
     }
 

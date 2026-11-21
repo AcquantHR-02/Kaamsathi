@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  After read-all.
+
+  Expected: 200 {"unread": 0}
+url: '{{baseUrl}}/api/notifications/unread-count'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appSeekerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('zero', () => pm.expect(pm.response.json().unread).to.eql(0));
+    language: text/javascript
+order: 9000

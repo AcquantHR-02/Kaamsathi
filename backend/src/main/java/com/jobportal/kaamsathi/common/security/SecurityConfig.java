@@ -20,6 +20,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errors) throws Exception {
         http
+                // CORS rules from the CorsConfigurationSource bean (common/config/CorsConfig)
+                .cors(Customizer.withDefaults())
                 // token API: no browser cookies → CSRF attack not possible, so turn the check off
                 .csrf(AbstractHttpConfigurer::disable)
                 // no server session: every request must bring its own token

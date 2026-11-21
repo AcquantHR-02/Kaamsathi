@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  Reopening takes a slot again → blocked while all 15 are used.
+
+  Expected: 409 {"code":"JOB_SLOTS_FULL", ...}
+url: '{{baseUrl}}/api/jobs/{{appClosedJobId}}/reopen'
+method: POST
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{appOwnerToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('409 Conflict', () => pm.response.to.have.status(409));
+      pm.test('code JOB_SLOTS_FULL', () => pm.expect(pm.response.json().code).to.eql('JOB_SLOTS_FULL'));
+    language: text/javascript
+order: 17400

@@ -1,0 +1,22 @@
+$kind: http-request
+description: |-
+  Every job card carries the company's public response badge. This company is brand new
+  (fewer than 10 applications in the last 90 days) → "New employer", no percent.
+
+  Expected: 200 {"items":[{"employerScore":{"replyRatePercent":null,"basedOnApplications":0,"newEmployer":true}, ...}], ...}
+url: '{{baseUrl}}/api/jobs?categoryId={{jobCategoryId}}'
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('card has "New employer" badge', () => {
+          const s = pm.response.json().items[0].employerScore;
+          pm.expect(s.newEmployer).to.eql(true);
+          pm.expect(s.replyRatePercent).to.eql(null);
+          pm.expect(s.basedOnApplications).to.eql(0);
+      });
+    language: text/javascript
+order: 23050

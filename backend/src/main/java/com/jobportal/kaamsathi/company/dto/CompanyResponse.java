@@ -20,6 +20,7 @@ public record CompanyResponse(
         String location,
         CompanyStatus status,
         String rejectionReason,   // null unless REJECTED
+        EmployerScore responseScore,
         Instant createdAt
 ) {
 
@@ -36,6 +37,7 @@ public record CompanyResponse(
                 c.getLocation(),
                 c.getStatus(),
                 c.getRejectionReason(),
+                EmployerScore.of(c.getResponseRate(), c.getResponseBasis()),
                 c.getCreatedAt());
     }
 }

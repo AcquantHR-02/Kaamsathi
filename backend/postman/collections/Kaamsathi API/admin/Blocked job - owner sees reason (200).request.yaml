@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  The company still sees its blocked job + why.
+
+  Expected: 200 [... {"id":"{{jobId}}","status":"BLOCKED","blockedReason":"Asks applicants for money"} ...]
+url: '{{baseUrl}}/api/jobs/mine'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{jobOwnerAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      pm.test('BLOCKED with reason', () => {
+          const j = pm.response.json().find(x => x.id === pm.collectionVariables.get('jobId'));
+          pm.expect(j.status).to.eql('BLOCKED');
+          pm.expect(j.blockedReason).to.eql('Asks applicants for money');
+      });
+    language: text/javascript
+order: 14800

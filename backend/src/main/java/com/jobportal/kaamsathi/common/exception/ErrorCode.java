@@ -41,6 +41,8 @@ public enum ErrorCode {
     MASTERDATA_NAME_EXISTS(HttpStatus.CONFLICT, "An item with this name already exists"),
     // free tier: 5 job posts per company, lifetime (Phase 4 plans raise it)
     FREE_JOB_LIMIT_REACHED(HttpStatus.CONFLICT, "Your company has used all 5 free job posts. Choose a plan to post more"),
+    JOB_SLOTS_FULL(HttpStatus.CONFLICT, "All job slots of your plan are in use. Close a job or choose a bigger plan"),
+    RECRUITER_SEATS_FULL(HttpStatus.CONFLICT, "All recruiter seats are in use. Remove a recruiter or choose a bigger plan"),
     // job of another company or unknown id: same 404 (don't tell outsiders which jobs exist)
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "Job not found"),
     // e.g. closing a job that is not ACTIVE, reopening one that is not CLOSED or already past its expiry
@@ -64,6 +66,10 @@ public enum ErrorCode {
     PLAN_NAME_EXISTS(HttpStatus.CONFLICT, "A plan with this name already exists"),
     // payment: requests (owner). Max 1 pending per company (DB UNIQUE on pending_company_id)
     PAYMENT_ALREADY_PENDING(HttpStatus.CONFLICT, "You already have a payment waiting for admin approval"),
+    // payment: admin approval
+    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Payment request not found"),
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Notification not found"),
+    PAYMENT_NOT_PENDING(HttpStatus.CONFLICT, "This payment request was already reviewed"),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "File is too large"),
     FILE_TYPE_NOT_ALLOWED(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "This file type is not allowed"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
