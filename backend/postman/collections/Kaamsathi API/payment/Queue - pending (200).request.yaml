@@ -25,5 +25,6 @@ scripts:
           list.forEach(p => pm.expect(p.status).to.eql('PENDING_APPROVAL'));
           for (let i = 1; i < list.length; i++) pm.expect(list[i - 1].createdAt <= list[i].createdAt).to.eql(true);
       });
+      pm.test('company name on every row', () => pm.response.json().forEach(r => pm.expect(r.company.name).to.be.a('string').and.not.empty));
     language: text/javascript
 order: 16200

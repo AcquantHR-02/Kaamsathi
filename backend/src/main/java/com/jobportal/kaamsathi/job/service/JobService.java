@@ -1,5 +1,9 @@
 package com.jobportal.kaamsathi.job.service;
 
+import com.jobportal.kaamsathi.company.service.LiveJobCounter;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Collection;
 import com.jobportal.kaamsathi.auth.service.UserService;
 import com.jobportal.kaamsathi.common.exception.ApiException;
 import com.jobportal.kaamsathi.common.exception.ErrorCode;
@@ -33,7 +37,7 @@ import java.util.UUID;
  * Jobs belong to the COMPANY: any owner / recruiter of that company may manage them.
  */
 @Service
-public class JobService {
+public class JobService implements LiveJobCounter {
 
     static final int FREE_POST_LIMIT = 5;                       // free tier (no plan), lifetime
     static final Duration JOB_VALIDITY = Duration.ofDays(60);   // auto-close scheduler comes in Phase 5
@@ -234,5 +238,25 @@ public class JobService {
 
     private static Short toShort(Integer value) {
         return value == null ? null : value.shortValue();
+    }
+
+    // admin user detail: jobs this owner / recruiter posted (any status)
+    @Transactional(readOnly = true)
+    public long countPostedBy(UUID userId) {
+        return jobRepository.countByCreatedBy(userId);
+    }
+
+    // id → title (audit log labels), any status
+    @Transactional(readOnly = true)
+    public Map<UUID, String> titlesByIds(Collection<UUID> ids) {
+        return jobRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Job::getId, Job::getTitle));
+    }
+
+    // for the public company page (LiveJobCounter, owned by the company module)
+    @Override
+    @Transactional(readOnly = true)
+    public long countLiveJobs(UUID companyId) {
+        return jobRepository.countByCompanyIdAndStatusAndExpiresAtAfter(companyId, JobStatus.ACTIVE, clock.instant());
     }
 }

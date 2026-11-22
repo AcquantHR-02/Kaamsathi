@@ -1,5 +1,7 @@
 package com.jobportal.kaamsathi.company.controller;
 
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestPart;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.company.dto.CompanyResponse;
 import com.jobportal.kaamsathi.company.dto.RegisterCompanyRequest;
@@ -84,5 +86,21 @@ public class CompanyController {
                                             @Valid @RequestBody TransferOwnershipRequest request) {
         return companyService.transferOwnership(
                 UUID.fromString(jwt.getSubject()), request.newOwnerId(), request.password());
+    }
+
+    /** PUT /api/companies/me/logo — multipart part "file" (jpeg / png / webp ≤ 2 MB) → 200 + company (logoFileId). */
+    // no `consumes` on purpose: a JSON body then gives our clean 400 (MultipartException), like the photo
+    @PutMapping("/me/logo")
+    @PreAuthorize("hasRole('COMPANY_OWNER')")
+    public CompanyResponse changeLogo(@AuthenticationPrincipal Jwt jwt, @RequestPart("file") MultipartFile file) {
+        return companyService.changeLogo(UUID.fromString(jwt.getSubject()), file);
+    }
+
+    /** DELETE /api/companies/me/logo → 204 (also when there was no logo). */
+    @DeleteMapping("/me/logo")
+    @PreAuthorize("hasRole('COMPANY_OWNER')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeLogo(@AuthenticationPrincipal Jwt jwt) {
+        companyService.removeLogo(UUID.fromString(jwt.getSubject()));
     }
 }

@@ -3,6 +3,7 @@ package com.jobportal.kaamsathi.auth.repository;
 import com.jobportal.kaamsathi.auth.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,4 +18,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     // all NOT revoked tokens of one user (= all devices still logged in)
     List<RefreshToken> findByUserIdAndRevokedAtIsNull(UUID userId);
+
+    // admin user detail: devices still logged in (not revoked, not expired)
+    long countByUserIdAndRevokedAtIsNullAndExpiresAtAfter(UUID userId, Instant now);
 }

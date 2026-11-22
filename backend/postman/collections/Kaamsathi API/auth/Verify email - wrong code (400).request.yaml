@@ -22,5 +22,6 @@ scripts:
     code: |-
       pm.test('400 Bad Request', () => pm.response.to.have.status(400));
       pm.test('code INVALID_OTP', () => pm.expect(pm.response.json().code).to.eql('INVALID_OTP'));
+      pm.test('tries left in details', () => pm.expect(pm.response.json().details.triesLeft).to.be.a('number'));
     language: text/javascript
 order: 19000

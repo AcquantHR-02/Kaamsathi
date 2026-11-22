@@ -1,5 +1,6 @@
 package com.jobportal.kaamsathi.auth.service;
 
+import com.jobportal.kaamsathi.auth.dto.ResetPreviewResponse;
 import com.jobportal.kaamsathi.auth.entity.TokenType;
 import com.jobportal.kaamsathi.auth.entity.User;
 import com.jobportal.kaamsathi.auth.entity.UserStatus;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -97,7 +99,9 @@ public class VerificationService {
 
         if (!code.getTokenHash().equals(SecureTokens.otpHash(code.getId(), otp))) {
             code.recordWrongAttempt(now, OTP_MAX_ATTEMPTS);
-            throw new ApiException(ErrorCode.INVALID_OTP);
+            int triesLeft = Math.max(0, OTP_MAX_ATTEMPTS - code.getAttempts());      // 0 = ask for a new code
+            throw new ApiException(ErrorCode.INVALID_OTP, ErrorCode.INVALID_OTP.getDefaultMessage(),
+                    Map.of("triesLeft", triesLeft));
         }
 
         code.markUsed(now);     // single use
@@ -189,5 +193,20 @@ public class VerificationService {
 
     private static String normalize(String rawEmail) {
         return rawEmail.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Reset page: whose account is this link for? Masked email only. Unknown / used / expired → 400 INVALID_LINK.
+     * Read-only: the link stays usable.
+     */
+    @Transactional(readOnly = true)
+    public ResetPreviewResponse previewReset(String token) {
+        Instant now = Instant.now(clock);
+        return verificationTokenRepository
+                .findByTokenHashAndType(SecureTokens.sha256(token), TokenType.PASSWORD_RESET)
+                .filter(t -> t.isUsable(now))
+                .flatMap(t -> userRepository.findById(t.getUserId()))
+                .map(u -> ResetPreviewResponse.of(u.getEmail()))
+                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_LINK));
     }
 }

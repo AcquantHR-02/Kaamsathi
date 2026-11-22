@@ -1,5 +1,8 @@
 package com.jobportal.kaamsathi.masterdata.service;
 
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Collection;
 import com.jobportal.kaamsathi.common.exception.ApiException;
 import com.jobportal.kaamsathi.common.exception.ErrorCode;
 import com.jobportal.kaamsathi.masterdata.dto.IndustryResponse;
@@ -90,5 +93,12 @@ public class IndustryService {
     private Industry find(UUID id) {
         return industryRepository.findById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.MASTERDATA_NOT_FOUND));
+    }
+
+    // id → name (audit log labels), hidden ones too
+    @Transactional(readOnly = true)
+    public Map<UUID, String> namesByIds(Collection<UUID> ids) {
+        return industryRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Industry::getId, Industry::getName));
     }
 }

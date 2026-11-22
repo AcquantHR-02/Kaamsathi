@@ -44,6 +44,12 @@ public class SavedJobService {
         this.clock = clock;
     }
 
+    // admin user detail
+    @Transactional(readOnly = true)
+    public long countBySeeker(UUID seekerId) {
+        return savedJobRepository.countByIdSeekerId(seekerId);
+    }
+
     // only a LIVE job can be saved (closed / expired / unknown → 404). Already saved → nothing changes.
     @Transactional
     public void save(UUID seekerId, UUID jobId) {

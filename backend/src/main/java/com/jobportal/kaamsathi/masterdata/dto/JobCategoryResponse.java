@@ -2,6 +2,7 @@ package com.jobportal.kaamsathi.masterdata.dto;
 
 import com.jobportal.kaamsathi.masterdata.entity.JobCategory;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -10,10 +11,11 @@ import java.util.UUID;
 public record JobCategoryResponse(
         UUID id,
         String name,
-        boolean active
+        boolean active,
+        Instant createdAt           // admin table "Added" column
 ) {
 
     public static JobCategoryResponse from(JobCategory category) {
-        return new JobCategoryResponse(category.getId(), category.getName(), category.isActive());
+        return new JobCategoryResponse(category.getId(), category.getName(), category.isActive(), category.getCreatedAt());
     }
 }

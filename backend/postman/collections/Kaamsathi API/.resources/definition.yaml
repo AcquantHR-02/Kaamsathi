@@ -44,6 +44,9 @@ variables:
   - key: companyId
     value: ''
     description: Filled by "Register company - success"; used by admin verify / reject
+  - key: companyLogoFileId
+    value: ''
+    description: Logo file id saved by company/"Logo - success"
   - key: recruiterEmail
     value: ''
     description: Filled by company/"Invite recruiter - success"

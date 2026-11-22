@@ -50,6 +50,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/jobs", "/api/jobs/*").permitAll()
                         // pricing page (plans) works before login; admin plan URLs are under /api/admin/** (protected)
                         .requestMatchers(HttpMethod.GET, "/api/plans").permitAll()
+                        // public company page + logo. ORDER MATTERS: /me and /pending (need login) are caught first
+                        .requestMatchers(HttpMethod.GET, "/api/companies/me", "/api/companies/me/**",
+                                "/api/companies/pending").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/companies/*", "/api/companies/*/logo").permitAll()
+                        // link previews before the user acts: invite page ("X invited you to Y"), reset page (masked email)
+                        .requestMatchers(HttpMethod.GET, "/api/auth/invites/*", "/api/auth/reset-password/*").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // everything else: must be logged in (safe default for new endpoints)
                         .anyRequest().authenticated())

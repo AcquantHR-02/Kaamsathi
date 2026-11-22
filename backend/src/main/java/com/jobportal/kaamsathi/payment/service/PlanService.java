@@ -114,7 +114,7 @@ public class PlanService {
 
     // id → name for lists (billing history, admin queue); hidden plans too (old requests keep their name)
     @Transactional(readOnly = true)
-    Map<UUID, String> namesByIds(Collection<UUID> ids) {
+    public Map<UUID, String> namesByIds(Collection<UUID> ids) {
         return planRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(Plan::getId, Plan::getName));
     }

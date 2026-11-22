@@ -1,0 +1,22 @@
+$kind: http-request
+description: |-
+  Admin opens one user ({{targetId}}, a seeker). Account + security + seeker activity numbers.
+  
+  Expected: 200 {"role":"SEEKER","emailVerified":true,"security":{"failedLogins":0,"maxFailedLogins":5,...},"activity":{"applications":0,"activeApplications":0,"savedJobs":0,"resumes":0}}
+url: '{{baseUrl}}/api/admin/users/{{targetId}}'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('seeker account', () => { pm.expect(b.id).to.eql(pm.collectionVariables.get('targetId')); pm.expect(b.role).to.eql('SEEKER'); pm.expect(b.emailVerified).to.eql(true); });
+      pm.test('security block', () => { pm.expect(b.security.maxFailedLogins).to.eql(5); pm.expect(b.security.activeSessions).to.be.a('number'); });
+      pm.test('seeker activity only', () => { pm.expect(b.activity.applications).to.eql(0); pm.expect(b.activity).to.not.have.property('jobsPosted'); });
+    language: text/javascript
+order: 11250

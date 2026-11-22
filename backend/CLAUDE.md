@@ -240,6 +240,12 @@ PHASE 1 AUTH: all features built.
 - ✅ PAYMENT MODULE / PHASE 4 COMPLETE (2026-11-21): plans, fake payment + screenshot, admin queue approve/reject, subscriptions (renewal starts at current end), limits (slots, seats, 3-day grace), my subscription. Expiry / reminders = Phase 5 scheduler.
 - AI features (resume assistant, smart match, mock interview; Gemini → Groq free) planned as **Phase 7, built LAST** (user, 2026-11-17). Plan + open decisions in Reference §9 "Phase 7 notes". Don't start before Phases 3–6 are done.
 
+**Session 15 (2026-11-22):**
+- Demo data in DB: `@example.com` accounts, password `Demo@1234` (owner `meera.kulkarni`, seeker `aarav.sharma`). Keep it.
+- Cleanup after Postman: delete only `@test.com` users + their data, and masterdata/plans/audit made during the run. Never wipe to admin-only.
+- `frontend/BACKEND_REQUESTS.md` items 1–14 ✅ (field names listed there). Flyway v25 (V24 audit action/label, V25 company logo). New: `GET /api/admin/users/{id}`, `GET /api/companies/{id}` (+ `/logo`), `PUT/DELETE /api/companies/me/logo`, `GET /api/auth/invites/{token}`, `GET /api/auth/reset-password/{token}`, `ApiError.details`. Interfaces: `CompanyNameLookup` (auth), `LiveJobCounter` (company).
+- Postman: 397 requests, 751 assertions, 0 failed. Not committed.
+
 ## Remember when rebuilding (lessons from the old build)
 - Error JSON for everything: 404 no endpoint, 400 VALIDATION_FAILED (field errors sorted, "; "), 405 wrong method, broken/missing JSON body (`HttpMessageNotReadableException`).
 - Store signup consent (`consent_at` column).
@@ -255,7 +261,7 @@ Phase 1 auth ✅: signup seeker/owner, email verify, login + JWT + lockout, refr
 Phase 2 company module ✅ (2026-11-15). masterdata module ✅ (2026-11-15: skills, industries, categories, cities). App renamed to Kaamsathi.
 
 When the user comes back (show plan first, wait for OK; one piece per turn unless they say "pura karo ek hi baar me"):
-0. RESUME HERE: Phases 0–5 ✅ (backend feature-complete for v1, 2026-11-21). Next = Phase 6 Next.js frontend (show a plan first: it is a NEW phase and a new tech). Phase 6 plan shown (Next.js App Router + TS, Tailwind + shadcn/ui, TanStack Query, react-hook-form + zod, access token in memory + refresh in localStorage, middleware role guard; order: setup → auth → public → seeker → employer → admin); waiting for user OK + explanation mode answer. CORS ✅. Small optional backend items: in-app rate limiting (login/apply/search), real SMTP EmailSender, README. Phase 7 AI = last. Keep developing without OK per piece.
+0. RESUME HERE: Phases 0–5 ✅ (backend feature-complete for v1, 2026-11-21) + frontend requests 1–14 ✅ (2026-11-22, Flyway v25). Next = Phase 6 Next.js frontend (show a plan first: it is a NEW phase and a new tech). Phase 6 plan shown (Next.js App Router + TS, Tailwind + shadcn/ui, TanStack Query, react-hook-form + zod, access token in memory + refresh in localStorage, middleware role guard; order: setup → auth → public → seeker → employer → admin); waiting for user OK + explanation mode answer. CORS ✅. Small optional backend items: in-app rate limiting (login/apply/search), real SMTP EmailSender, README. Phase 7 AI = last. Keep developing without OK per piece.
 1. ✅ job module COMPLETE (2026-11-16) → Phase 2 done ("verified company posts up to 5 jobs; seekers search them"). Main admin user management ✅ (2026-11-16). Phase 3 IN PROGRESS — plan OK'd (2026-11-16): 1 file module → 2 seeker profile (+ education/experience) → 3 profile picture (EVERY user: users.photo_file_id) + resume upload → 4 apply (snapshot, one per job, withdraw) → 5 recruiter pipeline + status history → 6 notes + rating. Files on LOCAL DISK now (FileStorage interface; MinIO later). One part per turn.
 2. ✅ Recruiter seat limit done (4.4).
 Open notes: suspended / removed user's access token works until expiry (≤ 15 min) — accepted; job writes should read companyId from DB, not the token; detached recruiter can't be re-invited (email exists) — revisit; account delete will need an event for other modules' data (Phase 5).

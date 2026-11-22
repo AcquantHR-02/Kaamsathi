@@ -18,6 +18,7 @@ public record CompanyResponse(
         String industry,
         String size,
         String location,
+        UUID logoFileId,          // null = no logo; image at GET /api/companies/{id}/logo
         CompanyStatus status,
         String rejectionReason,   // null unless REJECTED
         EmployerScore responseScore,
@@ -35,6 +36,7 @@ public record CompanyResponse(
                 c.getIndustry(),
                 c.getSize(),
                 c.getLocation(),
+                c.getLogoFileId(),
                 c.getStatus(),
                 c.getRejectionReason(),
                 EmployerScore.of(c.getResponseRate(), c.getResponseBasis()),

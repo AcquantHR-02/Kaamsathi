@@ -1,5 +1,7 @@
 package com.jobportal.kaamsathi.auth.service;
 
+import java.util.List;
+import com.jobportal.kaamsathi.auth.dto.InvitePreviewResponse;
 import com.jobportal.kaamsathi.auth.dto.InviteResponse;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.auth.event.RecruiterInvited;
@@ -39,6 +41,7 @@ public class InviteService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CompanyVerificationCheck companyCheck;   // implemented by the company module
+    private final CompanyNameLookup companyNames;          // implemented by the company module
     private final RecruiterSeatLimit seatLimit;            // implemented by the payment module
     private final ApplicationEventPublisher events;
     private final Clock clock;
@@ -46,6 +49,7 @@ public class InviteService {
 
     public InviteService(RecruiterInviteRepository inviteRepository, UserRepository userRepository,
                          PasswordEncoder passwordEncoder, CompanyVerificationCheck companyCheck,
+                         CompanyNameLookup companyNames,
                          RecruiterSeatLimit seatLimit, ApplicationEventPublisher events, Clock clock,
                          @Value("${app.frontend-url}") String frontendUrl) {
         this.events = events;
@@ -53,6 +57,7 @@ public class InviteService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.companyCheck = companyCheck;
+        this.companyNames = companyNames;
         this.seatLimit = seatLimit;
         this.clock = clock;
         this.frontendUrl = frontendUrl;
@@ -138,5 +143,20 @@ public class InviteService {
 
         invite.accept(now);   // single use; saved by dirty checking
         return UserResponse.from(recruiter);
+    }
+
+    /**
+     * Read an invite BEFORE accepting it (public; the token is the proof).
+     * Unknown / used / expired → 400 INVALID_LINK, same as accept.
+     */
+    @Transactional(readOnly = true)
+    public InvitePreviewResponse preview(String token) {
+        RecruiterInvite invite = inviteRepository.findByTokenHash(SecureTokens.sha256(token))
+                .filter(i -> i.isUsable(clock.instant()))
+                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_LINK));
+        String companyName = companyNames.namesByIds(List.of(invite.getCompanyId())).get(invite.getCompanyId());
+        String invitedBy = invite.getInvitedBy() == null ? null
+                : userRepository.findById(invite.getInvitedBy()).map(User::getEmail).orElse(null);
+        return new InvitePreviewResponse(invite.getEmail(), companyName, invitedBy, invite.getExpiresAt());
     }
 }

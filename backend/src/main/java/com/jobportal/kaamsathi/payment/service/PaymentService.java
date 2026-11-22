@@ -106,7 +106,7 @@ public class PaymentService {
             events.publishEvent(new PaymentApproved(payment.getId(), companyId, plan.getName(),
                     s.getStartsAt(), s.getEndsAt()));
         }
-        return PaymentRequestResponse.from(payment, plan.getName());
+        return toResponse(payment, plan.getName());
     }
 
     // owner's billing history, newest first
@@ -120,7 +120,9 @@ public class PaymentService {
                 paymentRequestRepository.findByCompanyIdOrderByCreatedAtDesc(companyId, Paging.of(page, size));
         Map<UUID, String> planNames = planService.namesByIds(
                 requests.getContent().stream().map(PaymentRequest::getPlanId).toList());
-        return PageResponse.from(requests, r -> PaymentRequestResponse.from(r, planNames.get(r.getPlanId())));
+        Map<UUID, String> companyNames = companyService.namesByIds(List.of(companyId));
+        return PageResponse.from(requests, r ->
+                PaymentRequestResponse.from(r, planNames.get(r.getPlanId()), companyNames.get(r.getCompanyId())));
     }
 
     // ---- admin ----
@@ -143,8 +145,10 @@ public class PaymentService {
                 paymentRequestRepository.findByStatusOrderByCreatedAtAsc(PaymentStatus.PENDING_APPROVAL);
         Map<UUID, String> planNames = planService.namesByIds(
                 pending.stream().map(PaymentRequest::getPlanId).toList());
+        Map<UUID, String> companyNames = companyService.namesByIds(
+                pending.stream().map(PaymentRequest::getCompanyId).toList());     // 1 query for all companies
         return pending.stream()
-                .map(r -> PaymentRequestResponse.from(r, planNames.get(r.getPlanId())))
+                .map(r -> PaymentRequestResponse.from(r, planNames.get(r.getPlanId()), companyNames.get(r.getCompanyId())))
                 .toList();
     }
 
@@ -157,7 +161,7 @@ public class PaymentService {
         Subscription subscription = startSubscription(payment, plan, now);
         events.publishEvent(new PaymentApproved(payment.getId(), payment.getCompanyId(), plan.getName(),
                 subscription.getStartsAt(), subscription.getEndsAt()));
-        return PaymentRequestResponse.from(payment, plan.getName());
+        return toResponse(payment, plan.getName());
     }
 
     @Transactional
@@ -167,10 +171,16 @@ public class PaymentService {
         Plan plan = planService.require(payment.getPlanId());
         events.publishEvent(new PaymentRejected(payment.getId(), payment.getCompanyId(), plan.getName(),
                 payment.getRejectionReason()));
-        return PaymentRequestResponse.from(payment, plan.getName());
+        return toResponse(payment, plan.getName());
     }
 
     // ---- helpers ----
+
+    // one payment → reply with plan + company names
+    private PaymentRequestResponse toResponse(PaymentRequest payment, String planName) {
+        String companyName = companyService.namesByIds(List.of(payment.getCompanyId())).get(payment.getCompanyId());
+        return PaymentRequestResponse.from(payment, planName, companyName);
+    }
 
     // SELECT ... FOR UPDATE: a 2nd admin click waits here, then sees "already reviewed"
     private PaymentRequest findPendingForUpdate(UUID paymentId) {
@@ -201,5 +211,15 @@ public class PaymentService {
             throw new ApiException(ErrorCode.PAYMENT_NOT_PENDING);              // UNIQUE payment_request_id
         }
         return subscription;
+    }
+
+    // audit log label: "Sahyadri Softech · Growth · Rs 2499"; unknown id → null
+    @Transactional(readOnly = true)
+    public String auditLabel(UUID paymentId) {
+        return paymentRequestRepository.findById(paymentId)
+                .map(p -> companyService.namesByIds(List.of(p.getCompanyId())).get(p.getCompanyId())
+                        + " · " + planService.namesByIds(List.of(p.getPlanId())).get(p.getPlanId())
+                        + " · Rs " + p.getAmountRupees())
+                .orElse(null);
     }
 }

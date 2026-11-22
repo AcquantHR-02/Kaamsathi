@@ -16,4 +16,7 @@ public interface SavedJobRepository extends JpaRepository<SavedJob, SavedJobId> 
     // SELECT * FROM saved_jobs WHERE seeker_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
     // "IdSeekerId" = the seekerId field INSIDE the id
     Page<SavedJob> findByIdSeekerIdOrderByCreatedAtDesc(UUID seekerId, Pageable pageable);
+
+    // admin user detail
+    long countByIdSeekerId(UUID seekerId);
 }

@@ -173,6 +173,11 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public long countCreatedSince(Instant since) {
+        return userRepository.countByCreatedAtGreaterThanEqual(since);
+    }
+
+    @Transactional(readOnly = true)
     public long countSuspended() {
         return userRepository.countByStatus(UserStatus.SUSPENDED);
     }

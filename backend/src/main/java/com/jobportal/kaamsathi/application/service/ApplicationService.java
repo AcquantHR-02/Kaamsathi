@@ -146,6 +146,19 @@ public class ApplicationService {
         return applicationRepository.count();
     }
 
+    // admin user detail: all applications of a seeker / the ones still running (not final)
+    @Transactional(readOnly = true)
+    public long countBySeeker(UUID seekerId) {
+        return applicationRepository.countBySeekerId(seekerId);
+    }
+
+    @Transactional(readOnly = true)
+    public long countActiveBySeeker(UUID seekerId) {
+        List<ApplicationStatus> running = java.util.Arrays.stream(ApplicationStatus.values())
+                .filter(s -> !s.isFinal()).toList();
+        return applicationRepository.countBySeekerIdAndStatusIn(seekerId, running);
+    }
+
     @Transactional(readOnly = true)
     public long countSince(Instant since) {
         return applicationRepository.countByCreatedAtGreaterThanEqual(since);

@@ -76,7 +76,8 @@ Admin actions live in the module that owns the data. For example, company verifi
 - CORS for the Next.js frontend. Rate limits on login, apply and search (later).
 
 **company**
-- Company registration: name, logo, GSTIN, website, industry, size, location.
+- Company registration: name, logo, GSTIN, website, industry, size, location. Logo: `PUT/DELETE /api/companies/me/logo` (owner, image ≤ 2 MB), `GET /api/companies/{id}/logo` (public).
+- Public company page: `GET /api/companies/{id}` (no login, VERIFIED only): profile, logo, response score, live job count.
 - Verification: `PENDING → VERIFIED / REJECTED` (with reason), reviewed by the admin. Only verified companies can post jobs.
 - Team: owner invites recruiters (invite token issued by the `auth` module), removes them, transfers ownership. Recruiter seat limit comes from the company's plan (free = 1).
 
@@ -125,7 +126,7 @@ Admin actions live in the module that owns the data. For example, company verifi
 **admin**
 - Dashboard: users, companies, active jobs, applications, approved payments.
 - Moderation: block jobs, suspend users or companies.
-- Audit log of every admin action (who, what, when).
+- Audit log of every admin action (who, what, when): `action` (e.g. COMPANY_VERIFIED), `targetType`, `targetLabel` (name snapshot) — V24.
 
 **Privacy (India DPDP Act)**
 - Consent checkbox at signup, account deletion, and limited retention of old applications.
@@ -142,10 +143,11 @@ Admin actions live in the module that owns the data. For example, company verifi
 - `POST /api/auth/signup/seeker`, `POST /api/auth/signup/company`
 - `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`
 - `POST /api/auth/verify-email` `{email, otp}`, `POST /api/auth/resend-otp`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`
-- `POST /api/auth/invites` (owner), `POST /api/auth/invites/accept` (recruiter)
+- `POST /api/auth/invites` (owner), `GET /api/auth/invites/{token}` (public preview: email, company, inviter email), `POST /api/auth/invites/accept` (recruiter)
+- `GET /api/auth/reset-password/{token}` (public preview: masked email)
 - `GET /api/auth/me`, `DELETE /api/auth/me` (delete own account, password asked again)
-- Admin "Users" screen: `GET /api/admin/users?q=&role=&status=&page=` (any admin), `POST /api/admin/users/{id}/suspend` / `unsuspend` (any admin for non-admins; only the MAIN admin for other admins), `DELETE /api/admin/users/{id}` (MAIN admin only; owner with a company → 409). Nobody can suspend / delete the main admin or themselves.
-- `POST /api/admin/admins` {email} (MAIN admin only = ADMIN_EMAIL from .env; new admin gets a 24 h set-password link → `reset-password` → ACTIVE), `GET /api/admin/admins` (any admin). Admins never register; all roles use the one login page.
+- Admin "Users" screen: `GET /api/admin/users?q=&role=&status=&page=` (any admin), `POST /api/admin/users/{id}/suspend` / `unsuspend` (any admin for non-admins; only the MAIN admin for other admins), `DELETE /api/admin/users/{id}` (MAIN admin only; owner with a company → 409). Nobody can suspend / delete the main admin or themselves. List rows carry `company`, `ownsCompany`, `mainAdmin`; `excludeSelf=true` hides the caller. `GET /api/admin/users/{id}` = detail (security + role-based activity; admin module).
+- `POST /api/admin/admins` {email} (MAIN admin only = ADMIN_EMAIL from .env; new admin gets a 24 h set-password link → `reset-password` → ACTIVE), `GET /api/admin/admins` (any admin; `mainAdmin` flag). Admins never register; all roles use the one login page.
 
 **Tokens**
 - Access token: JWT signed with RS256, valid 15 minutes. Claims: user id, role, company id.

@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  Audit rows say WHAT in words: action, target type, target name (snapshot).
+  
+  Expected: 200 {"items":[{"action":"JOB_UNBLOCKED","targetType":"JOB","targetLabel":"<job title>"},{"action":"JOB_BLOCKED",...}]}
+url: '{{baseUrl}}/api/admin/audit-log?targetId={{jobId}}'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const items = pm.response.json().items;
+      pm.test('actions in words', () => { pm.expect(items[0].action).to.eql('JOB_UNBLOCKED'); pm.expect(items[1].action).to.eql('JOB_BLOCKED'); });
+      pm.test('target type + label', () => items.forEach(i => { pm.expect(i.targetType).to.eql('JOB'); pm.expect(i.targetLabel).to.be.a('string').and.not.empty; }));
+    language: text/javascript
+order: 15150

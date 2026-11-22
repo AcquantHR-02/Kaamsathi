@@ -33,9 +33,11 @@ public class AuditService {
 
     // runs after the action's own transaction finished → its own small transaction
     @Transactional
-    public void record(UUID adminId, String method, String path, UUID targetId, int status) {
+    public void record(UUID adminId, String method, String path, UUID targetId, int status,
+                       String action, String targetType, String targetLabel) {
+        String label = targetLabel == null || targetLabel.length() <= 255 ? targetLabel : targetLabel.substring(0, 255);
         auditLogRepository.save(new AuditLogEntry(UUID.randomUUID(), adminId, method, path, targetId, status,
-                clock.instant()));
+                action, targetType, label, clock.instant()));
     }
 
     @Transactional(readOnly = true)
@@ -45,5 +47,11 @@ public class AuditService {
                 rows.getContent().stream().map(AuditLogEntry::getAdminId).filter(Objects::nonNull).distinct().toList());
         return PageResponse.from(rows, e -> AuditLogResponse.from(e,
                 e.getAdminId() == null ? null : emails.get(e.getAdminId())));
+    }
+
+    // admin user detail
+    @Transactional(readOnly = true)
+    public long countByAdmin(UUID adminId) {
+        return auditLogRepository.countByAdminId(adminId);
     }
 }

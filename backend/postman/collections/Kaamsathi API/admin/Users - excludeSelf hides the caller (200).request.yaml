@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  excludeSelf=true leaves the calling admin (main admin here) out of the list, so totals match the table.
+  
+  Expected: 200 {"items":[ ...admins, but NOT {{mainAdminId}} ...]}
+url: '{{baseUrl}}/api/admin/users?role=ADMIN&excludeSelf=true&size=50'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const ids = pm.response.json().items.map(u => u.id);
+      pm.test('caller not listed', () => pm.expect(ids).to.not.include(pm.collectionVariables.get('mainAdminId')));
+      pm.test('other admin still listed', () => pm.expect(ids).to.include(pm.collectionVariables.get('newAdminId')));
+    language: text/javascript
+order: 11370

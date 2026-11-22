@@ -22,6 +22,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     // SELECT COUNT(*) FROM jobs WHERE company_id = ?   (free quota: posts used, lifetime — closed jobs count too)
     long countByCompanyId(UUID companyId);
 
+    // admin user detail: jobs this user posted
+    long countByCreatedBy(UUID userId);
+
     // SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = ? AND expires_at > ?
     // (paid plan: slots in use = LIVE jobs right now; a past-expiry job frees its slot even before the scheduler)
     long countByCompanyIdAndStatusAndExpiresAtAfter(UUID companyId, JobStatus status, Instant now);
@@ -55,6 +58,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     // dashboard: live jobs right now
     long countByStatusAndExpiresAtAfter(JobStatus status, Instant now);
+
+    // dashboard: live jobs that expire inside a window ("74 expire this week")
+    long countByStatusAndExpiresAtBetween(JobStatus status, Instant from, Instant to);
 
     // ---- employer score copy (Phase 5.4): all jobs neutral, then each scored company's rate ----
     @Modifying(flushAutomatically = true, clearAutomatically = true)

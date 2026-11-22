@@ -1,5 +1,8 @@
 package com.jobportal.kaamsathi.admin.controller;
 
+import java.lang.reflect.RecordComponent;
+import com.jobportal.kaamsathi.admin.service.AuditTargetLabels;
+import com.jobportal.kaamsathi.admin.service.AuditActions;
 import com.jobportal.kaamsathi.admin.service.AuditService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +30,11 @@ import java.util.regex.Pattern;
  *  - it succeeded (2xx) — failed attempts change nothing, so nothing to audit.
  * Runs after the reply is decided (afterCompletion), so it never slows or breaks the admin's action.
  * Request bodies are NOT stored (could hold passwords / personal data); method + path + target id say what happened.
+ *
+ * WHAT, in words (V24): action + targetType come from AuditActions (fixed list of admin endpoints);
+ * targetLabel is the target's name at that moment. For DELETE it is read BEFORE the action (preHandle),
+ * because afterwards the row is gone; for everything else AFTER (a rename shows the new name).
+ * Create endpoints have no id in the path → the new id is taken from the reply (AuditResponseCapture).
  */
 @Component
 public class AdminAuditInterceptor implements HandlerInterceptor {
@@ -36,10 +44,33 @@ public class AdminAuditInterceptor implements HandlerInterceptor {
     private static final Pattern UUID_IN_PATH =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
-    private final AuditService auditService;
+    private static final String LABEL_BEFORE = AdminAuditInterceptor.class.getName() + ".labelBefore";
 
-    public AdminAuditInterceptor(AuditService auditService) {
+    private final AuditService auditService;
+    private final AuditTargetLabels labels;
+
+    public AdminAuditInterceptor(AuditService auditService, AuditTargetLabels labels) {
         this.auditService = auditService;
+        this.labels = labels;
+    }
+
+    // DELETE only: remember the name while the row still exists
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        try {
+            if ("DELETE".equals(request.getMethod()) && handler instanceof HandlerMethod hm && isAdminOnly(hm)) {
+                String path = request.getRequestURI();
+                AuditActions.find(request.getMethod(), path).ifPresent(a -> {
+                    String label = labels.labelOf(a.targetType(), firstId(path));
+                    if (label != null) {
+                        request.setAttribute(LABEL_BEFORE, label);
+                    }
+                });
+            }
+        } catch (RuntimeException e) {
+            log.warn("Audit label lookup failed", e);       // never blocks the admin's action
+        }
+        return true;
     }
 
     @Override
@@ -56,7 +87,18 @@ public class AdminAuditInterceptor implements HandlerInterceptor {
                 return;
             }
             String path = request.getRequestURI();
-            auditService.record(UUID.fromString(jwt.getSubject()), request.getMethod(), path, firstId(path), status);
+            String method = request.getMethod();
+            UUID targetId = firstId(path);
+            if (targetId == null) {
+                targetId = idOf(request.getAttribute(AuditResponseCapture.BODY_ATTRIBUTE));   // create → new id
+            }
+            AuditActions.AuditAction action = AuditActions.find(method, path).orElse(null);
+            String label = (String) request.getAttribute(LABEL_BEFORE);
+            if (label == null && action != null) {
+                label = safeLabel(action.targetType(), targetId);
+            }
+            auditService.record(UUID.fromString(jwt.getSubject()), method, path, targetId, status,
+                    action == null ? null : action.action(), action == null ? null : action.targetType(), label);
         } catch (RuntimeException e) {
             log.error("Audit log write failed", e);        // the admin action itself already succeeded
         }
@@ -71,6 +113,32 @@ public class AdminAuditInterceptor implements HandlerInterceptor {
 
     private static boolean mentionsAdmin(PreAuthorize p) {
         return p != null && p.value().contains("'ADMIN'");
+    }
+
+    private String safeLabel(String targetType, UUID id) {
+        try {
+            return labels.labelOf(targetType, id);
+        } catch (RuntimeException e) {
+            log.warn("Audit label lookup failed", e);
+            return null;
+        }
+    }
+
+    // reply record with a UUID "id" component (SkillResponse, PlanResponse, UserResponse …) → that id
+    private static UUID idOf(Object body) {
+        if (body == null || !body.getClass().isRecord()) {
+            return null;
+        }
+        for (RecordComponent c : body.getClass().getRecordComponents()) {
+            if (c.getName().equals("id") && c.getType() == UUID.class) {
+                try {
+                    return (UUID) c.getAccessor().invoke(body);
+                } catch (ReflectiveOperationException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     // "/api/companies/<uuid>/verify" → <uuid>; none → null

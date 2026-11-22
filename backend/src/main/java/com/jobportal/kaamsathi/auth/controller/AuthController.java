@@ -1,5 +1,7 @@
 package com.jobportal.kaamsathi.auth.controller;
 
+import org.springframework.web.bind.annotation.PathVariable;
+import com.jobportal.kaamsathi.auth.dto.ResetPreviewResponse;
 import com.jobportal.kaamsathi.auth.dto.DeleteAccountRequest;
 import com.jobportal.kaamsathi.auth.dto.ForgotPasswordRequest;
 import com.jobportal.kaamsathi.auth.dto.LoginRequest;
@@ -72,6 +74,12 @@ public class AuthController {
             reply.header(DEV_RESET_TOKEN_HEADER, token.get());
         }
         return reply.build();
+    }
+
+    /** GET /api/auth/reset-password/{token} → 200 {maskedEmail} (public); bad / used / expired → 400 INVALID_LINK. */
+    @GetMapping("/reset-password/{token}")
+    public ResetPreviewResponse resetPreview(@PathVariable String token) {
+        return verificationService.previewReset(token);
     }
 
     /** POST /api/auth/reset-password → 204; new password saved, every device logged out (public: the token is the proof) */

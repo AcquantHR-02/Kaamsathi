@@ -1,5 +1,6 @@
 package com.jobportal.kaamsathi.auth.service;
 
+import com.jobportal.kaamsathi.auth.dto.AdminUserSummaryResponse;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.auth.entity.User;
 import com.jobportal.kaamsathi.auth.entity.UserStatus;
@@ -81,9 +82,9 @@ public class AdminAccountService {
 
     // all admins, oldest first (the main admin is on top). Any admin may see the list.
     @Transactional(readOnly = true)
-    public List<UserResponse> listAdmins() {
+    public List<AdminUserSummaryResponse> listAdmins() {
         return userRepository.findByRoleOrderByCreatedAtAsc(Role.ADMIN).stream()
-                .map(UserResponse::from)
+                .map(u -> AdminUserSummaryResponse.from(u, null, mainAdmin.is(u)))   // mainAdmin flag, no guessing
                 .toList();
     }
 

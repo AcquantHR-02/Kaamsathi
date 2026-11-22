@@ -13,13 +13,14 @@ public record DashboardResponse(
         Payments payments,
         Instant generatedAt
 ) {
-    public record Users(long seekers, long companyOwners, long recruiters, long admins, long suspended) {
+    public record Users(long seekers, long companyOwners, long recruiters, long admins, long suspended,
+                        long newThisWeek) {             // accounts made in the last 7 days
     }
 
     public record Companies(long pending, long verified, long rejected) {
     }
 
-    public record Jobs(long live) {
+    public record Jobs(long live, long expiringThisWeek) {   // ACTIVE, 60 days end in the next 7 days
     }
 
     public record Applications(long total, long last30Days) {

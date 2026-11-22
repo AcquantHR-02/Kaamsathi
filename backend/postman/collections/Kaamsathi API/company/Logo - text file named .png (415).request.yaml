@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  The real type comes from the file bytes, not the name.
+  
+  Expected: 415 FILE_TYPE_NOT_ALLOWED
+url: '{{baseUrl}}/api/companies/me/logo'
+method: PUT
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{ownerAccessToken}}'
+body:
+  type: formdata
+  content:
+    - key: file
+      type: file
+      src: 'postman/files/not-an-image.png'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('415 Unsupported Media Type', () => pm.response.to.have.status(415));
+      pm.test('code FILE_TYPE_NOT_ALLOWED', () => pm.expect(pm.response.json().code).to.eql('FILE_TYPE_NOT_ALLOWED'));
+    language: text/javascript
+order: 14520

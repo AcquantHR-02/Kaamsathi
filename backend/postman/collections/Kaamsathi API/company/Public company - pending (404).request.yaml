@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  Public page shows VERIFIED companies only. {{companyId}} is still PENDING.
+  
+  Expected: 404 COMPANY_NOT_FOUND
+url: '{{baseUrl}}/api/companies/{{companyId}}'
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('404 Not Found', () => pm.response.to.have.status(404));
+      pm.test('code COMPANY_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('COMPANY_NOT_FOUND'));
+    language: text/javascript
+order: 7100
