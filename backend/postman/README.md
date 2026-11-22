@@ -20,6 +20,7 @@ postman/collections/Kaamsathi API/
 - `oldRefreshToken` ← "Refresh - success" (proves the old token stops working)
 - `companyOwnerEmail`, `ownerVerifyToken`, `ownerAccessToken` ← company/"Setup - …" requests
 - `gstin`, `companyId` ← "Register company - success" (random valid GSTIN each run)
+- `companyLogoFileId` ← company/"Logo - success"
 - `adminEmail`, `adminPassword` → **you set these** (same as `ADMIN_EMAIL`/`ADMIN_PASSWORD` in your `.env`).
   They are empty in the files on purpose (no secrets in git). CLI:
   `--env-var "adminEmail=..." --env-var "adminPassword=..."`; in the app: set the *current value* only.

@@ -23,6 +23,8 @@ import java.time.Instant;
 @Service
 public class DashboardService {
 
+    private static final Duration WEEK = Duration.ofDays(7);
+
     private final UserService userService;
     private final CompanyService companyService;
     private final JobModerationService jobModerationService;
@@ -49,12 +51,14 @@ public class DashboardService {
                         userService.countByRole(Role.COMPANY_OWNER),
                         userService.countByRole(Role.RECRUITER),
                         userService.countByRole(Role.ADMIN),
-                        userService.countSuspended()),
+                        userService.countSuspended(),
+                        userService.countCreatedSince(now.minus(WEEK))),
                 new DashboardResponse.Companies(
                         companyService.countByStatus(CompanyStatus.PENDING),
                         companyService.countByStatus(CompanyStatus.VERIFIED),
                         companyService.countByStatus(CompanyStatus.REJECTED)),
-                new DashboardResponse.Jobs(jobModerationService.countLive()),
+                new DashboardResponse.Jobs(jobModerationService.countLive(),
+                        jobModerationService.countExpiringWithin(WEEK)),
                 new DashboardResponse.Applications(
                         applicationService.countAll(),
                         applicationService.countSince(now.minus(Duration.ofDays(30)))),

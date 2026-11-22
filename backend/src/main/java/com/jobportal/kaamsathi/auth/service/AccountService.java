@@ -1,5 +1,7 @@
 package com.jobportal.kaamsathi.auth.service;
 
+import com.jobportal.kaamsathi.auth.dto.UserAccountView;
+import com.jobportal.kaamsathi.auth.dto.AdminUserSummaryResponse;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.auth.entity.User;
 import com.jobportal.kaamsathi.auth.entity.UserStatus;
@@ -11,13 +13,17 @@ import com.jobportal.kaamsathi.common.security.Role;
 import com.jobportal.kaamsathi.common.util.Paging;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -37,22 +43,48 @@ public class AccountService {
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final MainAdmin mainAdmin;
+    private final CompanyNameLookup companyNames;   // implemented by the company module
     private final Clock clock;
 
     public AccountService(UserRepository userRepository, TokenService tokenService,
-                          PasswordEncoder passwordEncoder, MainAdmin mainAdmin, Clock clock) {
+                          PasswordEncoder passwordEncoder, MainAdmin mainAdmin,
+                          CompanyNameLookup companyNames, Clock clock) {
         this.userRepository = userRepository;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
         this.mainAdmin = mainAdmin;
+        this.companyNames = companyNames;
         this.clock = clock;
     }
 
     /** Admin "Users" screen: filter by role / status / part of the email, newest first. */
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> list(Role role, UserStatus status, String q, Integer page, Integer size) {
+    public PageResponse<AdminUserSummaryResponse> list(Role role, UserStatus status, String q, UUID excludeId,
+                                                       Integer page, Integer size) {
         String text = (q == null || q.isBlank()) ? null : q.trim().toLowerCase(Locale.ROOT);
-        return PageResponse.from(userRepository.search(role, status, text, Paging.of(page, size)), UserResponse::from);
+        Page<User> users = userRepository.search(role, status, text, excludeId, Paging.of(page, size));
+        Map<UUID, String> names = companyNames.namesByIds(               // 1 query for the whole page
+                users.getContent().stream().map(User::getCompanyId).filter(Objects::nonNull).distinct().toList());
+        return PageResponse.from(users, u ->
+                AdminUserSummaryResponse.from(u, names.get(u.getCompanyId()), mainAdmin.is(u)));
+    }
+
+    /** Admin user detail (auth part): account + security state. Unknown id → 404. */
+    @Transactional(readOnly = true)
+    public UserAccountView getAccount(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        UUID companyId = user.getCompanyId();
+        String companyName = companyId == null ? null : companyNames.namesByIds(List.of(companyId)).get(companyId);
+        Instant now = clock.instant();
+        return new UserAccountView(
+                AdminUserSummaryResponse.from(user, companyName, mainAdmin.is(user)),
+                user.getStatus() != UserStatus.UNVERIFIED,
+                user.getConsentAt(),
+                user.getFailedLoginCount(),
+                LoginService.MAX_FAILED_LOGINS,
+                user.isLocked(now) ? user.getLockedUntil() : null,      // old lock times are not shown
+                tokenService.countActiveSessions(userId));
     }
 
     /** Block a user: login + refresh stop, all devices logged out. */

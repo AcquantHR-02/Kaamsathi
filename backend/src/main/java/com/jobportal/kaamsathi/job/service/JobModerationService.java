@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -72,6 +73,13 @@ public class JobModerationService {
     @Transactional(readOnly = true)
     public long countLive() {
         return jobRepository.countByStatusAndExpiresAtAfter(JobStatus.ACTIVE, clock.instant());
+    }
+
+    // dashboard: ACTIVE jobs whose 60 days end in the next 7 days
+    @Transactional(readOnly = true)
+    public long countExpiringWithin(Duration window) {
+        Instant now = clock.instant();
+        return jobRepository.countByStatusAndExpiresAtBetween(JobStatus.ACTIVE, now, now.plus(window));
     }
 
     private Job find(UUID jobId) {

@@ -1,5 +1,6 @@
 package com.jobportal.kaamsathi.auth.controller;
 
+import com.jobportal.kaamsathi.auth.dto.AdminUserSummaryResponse;
 import com.jobportal.kaamsathi.auth.dto.CreateAdminRequest;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.auth.service.AdminAccountService;
@@ -54,7 +55,7 @@ public class AdminAccountController {
 
     /** GET /api/admin/admins → 200 + all admins, oldest (main admin) first. */
     @GetMapping
-    public List<UserResponse> list() {
+    public List<AdminUserSummaryResponse> list() {
         return adminAccountService.listAdmins();
     }
 }

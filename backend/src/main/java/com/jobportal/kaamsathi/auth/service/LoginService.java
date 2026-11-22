@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,7 +24,7 @@ import java.util.Locale;
 @Service
 public class LoginService {
 
-    private static final int MAX_FAILED_LOGINS = 5;
+    public static final int MAX_FAILED_LOGINS = 5;      // public: admin user detail shows "2 of 5"
     private static final Duration LOCK_DURATION = Duration.ofMinutes(15);
 
     private final UserRepository userRepository;
@@ -57,7 +58,8 @@ public class LoginService {
         }
 
         if (user.isLocked(now)) {
-            throw new ApiException(ErrorCode.ACCOUNT_LOCKED);
+            throw new ApiException(ErrorCode.ACCOUNT_LOCKED, ErrorCode.ACCOUNT_LOCKED.getDefaultMessage(),
+                    Map.of("lockedUntil", user.getLockedUntil()));      // frontend shows the real unlock time
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

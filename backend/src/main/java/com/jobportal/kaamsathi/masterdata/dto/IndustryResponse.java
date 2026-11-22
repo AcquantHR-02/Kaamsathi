@@ -2,6 +2,7 @@ package com.jobportal.kaamsathi.masterdata.dto;
 
 import com.jobportal.kaamsathi.masterdata.entity.Industry;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -10,10 +11,11 @@ import java.util.UUID;
 public record IndustryResponse(
         UUID id,
         String name,
-        boolean active
+        boolean active,
+        Instant createdAt           // admin table "Added" column
 ) {
 
     public static IndustryResponse from(Industry industry) {
-        return new IndustryResponse(industry.getId(), industry.getName(), industry.isActive());
+        return new IndustryResponse(industry.getId(), industry.getName(), industry.isActive(), industry.getCreatedAt());
     }
 }

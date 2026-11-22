@@ -9,11 +9,13 @@ import java.util.UUID;
 
 /**
  * One payment request as the API shows it (owner's billing history, admin queue).
- * plan = {id, name} so the screen can print "Pro" without another call.
+ * plan / company = {id, name} so the screen can print "Pro" / "TechNova Labs" without another call.
+ * companyId is kept (older frontend code reads it).
  */
 public record PaymentRequestResponse(
         UUID id,
         UUID companyId,
+        NamedRef company,
         NamedRef plan,
         int amountRupees,
         String transactionId,
@@ -24,10 +26,11 @@ public record PaymentRequestResponse(
         Instant reviewedAt          // null while PENDING_APPROVAL
 ) {
 
-    public static PaymentRequestResponse from(PaymentRequest request, String planName) {
+    public static PaymentRequestResponse from(PaymentRequest request, String planName, String companyName) {
         return new PaymentRequestResponse(
                 request.getId(),
                 request.getCompanyId(),
+                new NamedRef(request.getCompanyId(), companyName),
                 new NamedRef(request.getPlanId(), planName),
                 request.getAmountRupees(),
                 request.getTransactionId(),

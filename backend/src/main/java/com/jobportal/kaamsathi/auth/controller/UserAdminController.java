@@ -1,5 +1,6 @@
 package com.jobportal.kaamsathi.auth.controller;
 
+import com.jobportal.kaamsathi.auth.dto.AdminUserSummaryResponse;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
 import com.jobportal.kaamsathi.auth.entity.UserStatus;
 import com.jobportal.kaamsathi.auth.service.AccountService;
@@ -35,14 +36,19 @@ public class UserAdminController {
         this.accountService = accountService;
     }
 
-    /** GET /api/admin/users?q=&role=&status=&page=&size= → page of users, newest first. */
+    /**
+     * GET /api/admin/users?q=&role=&status=&excludeSelf=&page=&size= → page of users, newest first.
+     * excludeSelf=true leaves the calling admin out (so the totals match the table). Default false.
+     */
     @GetMapping
-    public PageResponse<UserResponse> list(@RequestParam(required = false) String q,
+    public PageResponse<AdminUserSummaryResponse> list(@RequestParam(required = false) String q,
                                            @RequestParam(required = false) Role role,
                                            @RequestParam(required = false) UserStatus status,
+                                           @RequestParam(defaultValue = "false") boolean excludeSelf,
+                                           @AuthenticationPrincipal Jwt jwt,
                                            @RequestParam(required = false) Integer page,
                                            @RequestParam(required = false) Integer size) {
-        return accountService.list(role, status, q, page, size);
+        return accountService.list(role, status, q, excludeSelf ? callerId(jwt) : null, page, size);
     }
 
     /** POST /api/admin/users/{id}/suspend → 200 + user (SUSPENDED) */

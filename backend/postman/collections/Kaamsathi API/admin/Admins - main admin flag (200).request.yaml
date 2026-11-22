@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  Admins list says which one is the main admin (ADMIN_EMAIL), no guessing by order.
+  
+  Expected: 200 [{"email":"{{adminEmail}}","mainAdmin":true,...},{"mainAdmin":false,...}]
+url: '{{baseUrl}}/api/admin/admins'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const list = pm.response.json();
+      const main = list.filter(a => a.mainAdmin);
+      pm.test('exactly one main admin = ADMIN_EMAIL', () => { pm.expect(main.length).to.eql(1); pm.expect(main[0].email).to.eql(pm.variables.get('adminEmail')); });
+    language: text/javascript
+order: 11350

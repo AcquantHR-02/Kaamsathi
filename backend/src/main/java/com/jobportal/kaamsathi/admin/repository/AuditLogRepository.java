@@ -19,4 +19,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLogEntry, UUID> {
               AND (:targetId IS NULL OR a.targetId = :targetId)
             ORDER BY a.createdAt DESC""")
     Page<AuditLogEntry> search(@Param("adminId") UUID adminId, @Param("targetId") UUID targetId, Pageable pageable);
+
+    // admin user detail: actions done by this admin
+    long countByAdminId(UUID adminId);
 }

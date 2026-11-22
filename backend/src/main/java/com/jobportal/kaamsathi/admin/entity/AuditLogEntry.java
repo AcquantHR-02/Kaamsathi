@@ -39,19 +39,32 @@ public class AuditLogEntry {
     @Column(nullable = false)
     private short status;
 
+    @Column(length = 40)
+    private String action;          // e.g. COMPANY_VERIFIED; null = old row / unknown endpoint
+
+    @Column(name = "target_type", length = 20)
+    private String targetType;      // e.g. COMPANY
+
+    @Column(name = "target_label", length = 255)
+    private String targetLabel;     // name at that time, e.g. "TechNova Labs"
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
     protected AuditLogEntry() {
     }
 
-    public AuditLogEntry(UUID id, UUID adminId, String method, String path, UUID targetId, int status, Instant now) {
+    public AuditLogEntry(UUID id, UUID adminId, String method, String path, UUID targetId, int status,
+                         String action, String targetType, String targetLabel, Instant now) {
         this.id = id;
         this.adminId = adminId;
         this.method = method;
         this.path = path;
         this.targetId = targetId;
         this.status = (short) status;
+        this.action = action;
+        this.targetType = targetType;
+        this.targetLabel = targetLabel;
         this.createdAt = now;
     }
 
@@ -61,5 +74,8 @@ public class AuditLogEntry {
     public String getPath() { return path; }
     public UUID getTargetId() { return targetId; }
     public int getStatus() { return status; }
+    public String getAction() { return action; }
+    public String getTargetType() { return targetType; }
+    public String getTargetLabel() { return targetLabel; }
     public Instant getCreatedAt() { return createdAt; }
 }

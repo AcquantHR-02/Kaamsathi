@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  Admin detail shows mainAdmin + number of admin actions.
+  
+  Expected: 200 {"role":"ADMIN","mainAdmin":true,"activity":{"adminActions":N}}
+url: '{{baseUrl}}/api/admin/users/{{mainAdminId}}'
+method: GET
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminAccessToken}}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('main admin', () => { pm.expect(b.role).to.eql('ADMIN'); pm.expect(b.mainAdmin).to.eql(true); });
+      pm.test('admin actions counted', () => pm.expect(b.activity.adminActions).to.be.a('number'));
+    language: text/javascript
+order: 11360

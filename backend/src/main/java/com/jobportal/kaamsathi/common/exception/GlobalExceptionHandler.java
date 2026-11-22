@@ -1,5 +1,7 @@
 package com.jobportal.kaamsathi.common.exception;
 
+import org.springframework.http.HttpHeaders;
+import java.time.Duration;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -73,7 +75,16 @@ public class GlobalExceptionHandler {
     /** Business rule failed in a service (e.g. EMAIL_ALREADY_EXISTS) → the code's own status */
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
-        return build(ex.getErrorCode(), ex.getMessage(), request);
+        ErrorCode code = ex.getErrorCode();
+        ApiError body = new ApiError(Instant.now(clock), code.getStatus().value(), code.name(), ex.getMessage(),
+                request.getRequestURI(), ex.getDetails());
+        ResponseEntity.BodyBuilder reply = ResponseEntity.status(code.getStatus());
+        // locked → standard Retry-After header (seconds) next to details.lockedUntil
+        if (ex.getDetails() != null && ex.getDetails().get("lockedUntil") instanceof Instant until) {
+            long seconds = Math.max(1, Duration.between(Instant.now(clock), until).toSeconds());
+            reply.header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds));
+        }
+        return reply.body(body);
     }
 
     /**

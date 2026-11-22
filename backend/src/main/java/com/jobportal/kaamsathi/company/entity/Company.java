@@ -64,6 +64,10 @@ public class Company {
     @Column(name = "response_score_at")
     private Instant responseScoreAt;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "logo_file_id", length = 36)
+    private UUID logoFileId;              // null = no logo (frontend shows initials)
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -94,6 +98,12 @@ public class Company {
 
     public boolean isPending() {
         return status == CompanyStatus.PENDING;
+    }
+
+    // owner uploads / removes the logo (null = removed). Doesn't change the status: a logo needs no review.
+    public void changeLogo(UUID fileId, Instant now) {
+        logoFileId = fileId;
+        updatedAt = now;
     }
 
     // admin approves → VERIFIED, old reason cleared
@@ -149,6 +159,7 @@ public class Company {
     public Integer getResponseRate() { return responseRate; }
     public int getResponseBasis() { return responseBasis; }
     public Instant getResponseScoreAt() { return responseScoreAt; }
+    public UUID getLogoFileId() { return logoFileId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

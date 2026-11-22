@@ -27,6 +27,11 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     // already applied? (fast path; the UNIQUE key is the real guard)
     boolean existsByJobIdAndSeekerId(UUID jobId, UUID seekerId);
 
+    // admin user detail
+    long countBySeekerId(UUID seekerId);
+
+    long countBySeekerIdAndStatusIn(UUID seekerId, Collection<ApplicationStatus> statuses);
+
     // "my applications", newest first (index seeker_id, created_at)
     Page<Application> findBySeekerIdOrderByCreatedAtDesc(UUID seekerId, Pageable pageable);
 

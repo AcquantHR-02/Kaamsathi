@@ -93,6 +93,12 @@ public class TokenService {
                 .forEach(token -> token.revoke(now));   // saved by dirty checking
     }
 
+    // admin user detail: how many devices are logged in right now
+    @Transactional(readOnly = true)
+    public long countActiveSessions(UUID userId) {
+        return refreshTokenRepository.countByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId, Instant.now(clock));
+    }
+
     // plain token goes to the user ONCE; the DB only keeps its hash
     private String createRefreshToken(UUID userId) {
         String token = SecureTokens.newToken();

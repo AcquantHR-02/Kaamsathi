@@ -1,6 +1,12 @@
 package com.jobportal.kaamsathi.company.service;
 
+import org.springframework.web.multipart.MultipartFile;
+import com.jobportal.kaamsathi.file.service.FileService;
+import com.jobportal.kaamsathi.file.entity.FileKind;
+import com.jobportal.kaamsathi.file.dto.FileResponse;
+import com.jobportal.kaamsathi.file.dto.FileContent;
 import com.jobportal.kaamsathi.auth.dto.UserResponse;
+import com.jobportal.kaamsathi.auth.service.CompanyNameLookup;
 import com.jobportal.kaamsathi.auth.service.CompanyVerificationCheck;
 import com.jobportal.kaamsathi.auth.service.UserService;
 import com.jobportal.kaamsathi.common.exception.ApiException;
@@ -32,17 +38,19 @@ import java.util.stream.Collectors;
  * Company rules: register (owner), later verify / reject (admin).
  */
 @Service
-public class CompanyService implements CompanyVerificationCheck {
+public class CompanyService implements CompanyVerificationCheck, CompanyNameLookup {
 
     private final CompanyRepository companyRepository;
     private final UserService userService;      // auth's SERVICE, never its repository
+    private final FileService fileService;      // logo bytes
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    public CompanyService(CompanyRepository companyRepository, UserService userService,
+    public CompanyService(CompanyRepository companyRepository, UserService userService, FileService fileService,
                           ApplicationEventPublisher events, Clock clock) {
         this.companyRepository = companyRepository;
         this.userService = userService;
+        this.fileService = fileService;
         this.events = events;
         this.clock = clock;
     }
@@ -224,6 +232,7 @@ public class CompanyService implements CompanyVerificationCheck {
 
     // for the job module (search results): company id → name
     @Transactional(readOnly = true)
+    @Override
     public Map<UUID, String> namesByIds(Collection<UUID> ids) {
         return companyRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(Company::getId, Company::getName));
@@ -255,5 +264,45 @@ public class CompanyService implements CompanyVerificationCheck {
             companyRepository.setResponseScore(s.companyId(), s.ratePercent(), s.basis(), now);
         }
         events.publishEvent(new ResponseScoresUpdated(scores));
+    }
+
+    // ---- logo ----
+
+    /** Owner uploads / replaces the logo (jpeg / png / webp ≤ 2 MB). Old logo file is deleted. No company → 404. */
+    @Transactional
+    public CompanyResponse changeLogo(UUID ownerId, MultipartFile upload) {
+        Company company = companyRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMPANY_NOT_FOUND));
+        UUID oldLogoId = company.getLogoFileId();
+        FileResponse saved = fileService.upload(ownerId, FileKind.LOGO, upload);   // 400 / 413 / 415
+        company.changeLogo(saved.id(), clock.instant());
+        if (oldLogoId != null) {
+            fileService.delete(oldLogoId);     // nobody needs an old logo
+        }
+        return CompanyResponse.from(company);
+    }
+
+    /** Owner removes the logo. No logo → nothing to do (still OK). */
+    @Transactional
+    public void removeLogo(UUID ownerId) {
+        Company company = companyRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMPANY_NOT_FOUND));
+        UUID oldLogoId = company.getLogoFileId();
+        if (oldLogoId != null) {
+            company.changeLogo(null, clock.instant());
+            fileService.delete(oldLogoId);
+        }
+    }
+
+    /** Logo image of any company (public: a logo is not secret). Unknown company → 404 COMPANY_NOT_FOUND, no logo → 404 FILE_NOT_FOUND. */
+    @Transactional(readOnly = true)
+    public FileContent openLogo(UUID companyId) {
+        UUID logoId = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMPANY_NOT_FOUND))
+                .getLogoFileId();
+        if (logoId == null) {
+            throw new ApiException(ErrorCode.FILE_NOT_FOUND, "This company has no logo");
+        }
+        return fileService.open(logoId);
     }
 }

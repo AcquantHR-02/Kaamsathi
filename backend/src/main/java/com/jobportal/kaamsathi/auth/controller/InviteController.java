@@ -1,5 +1,8 @@
 package com.jobportal.kaamsathi.auth.controller;
 
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
+import com.jobportal.kaamsathi.auth.dto.InvitePreviewResponse;
 import com.jobportal.kaamsathi.auth.dto.AcceptInviteRequest;
 import com.jobportal.kaamsathi.auth.dto.InviteRequest;
 import com.jobportal.kaamsathi.auth.dto.InviteResponse;
@@ -57,5 +60,11 @@ public class InviteController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse accept(@Valid @RequestBody AcceptInviteRequest request) {
         return inviteService.accept(request.token(), request.password());
+    }
+
+    /** GET /api/auth/invites/{token} → 200 preview (public); bad / used / expired → 400 INVALID_LINK. */
+    @GetMapping("/{token}")
+    public InvitePreviewResponse preview(@PathVariable String token) {
+        return inviteService.preview(token);
     }
 }

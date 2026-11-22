@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  Anyone (no login) sees a VERIFIED company. No private fields (owner, GSTIN, status).
+  
+  Expected: 200 {"id":"{{companyId}}","name":"...","logoFileId":"{{companyLogoFileId}}","responseScore":{...},"liveJobs":0,"memberSince":"..."}
+url: '{{baseUrl}}/api/companies/{{companyId}}'
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('profile + logo', () => { pm.expect(b.id).to.eql(pm.collectionVariables.get('companyId')); pm.expect(b.logoFileId).to.eql(pm.collectionVariables.get('companyLogoFileId')); });
+      pm.test('live job count + score', () => { pm.expect(b.liveJobs).to.be.a('number'); pm.expect(b.responseScore).to.be.an('object'); });
+      pm.test('no private fields', () => { pm.expect(b).to.not.have.property('gstin'); pm.expect(b).to.not.have.property('ownerId'); pm.expect(b).to.not.have.property('status'); });
+    language: text/javascript
+order: 14540

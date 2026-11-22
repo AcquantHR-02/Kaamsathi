@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +35,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     long countByStatus(UserStatus status);
 
+    // dashboard: new accounts since a time ("+312 this week")
+    long countByCreatedAtGreaterThanEqual(Instant since);
+
     // whole team of a company (owner + recruiters): SELECT * FROM users WHERE company_id = ?
     List<User> findByCompanyId(UUID companyId);
 
@@ -43,14 +47,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // SELECT * FROM users WHERE role = ? ORDER BY created_at   (admin list: oldest = first admin on top)
     List<User> findByRoleOrderByCreatedAtAsc(Role role);
 
-    // admin "Users" screen: every filter optional (null = off); q = part of the email. Newest first.
+    // admin "Users" screen: every filter optional (null = off); q = part of the email;
+    // excludeId = leave this user out (the calling admin). Newest first.
     @Query("""
             SELECT u FROM User u
             WHERE (:role IS NULL OR u.role = :role)
               AND (:status IS NULL OR u.status = :status)
               AND (:q IS NULL OR u.email LIKE CONCAT('%', :q, '%'))
+              AND (:excludeId IS NULL OR u.id <> :excludeId)
             ORDER BY u.createdAt DESC
             """)
     Page<User> search(@Param("role") Role role, @Param("status") UserStatus status,
-                      @Param("q") String q, Pageable pageable);
+                      @Param("q") String q, @Param("excludeId") UUID excludeId, Pageable pageable);
 }

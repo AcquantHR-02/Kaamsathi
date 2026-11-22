@@ -1,0 +1,27 @@
+$kind: http-request
+description: |-
+  Owner uploads the logo (jpeg / png / webp, max 2 MB). Saves {{companyLogoFileId}}.
+  
+  Expected: 200 {"id":"{{companyId}}","logoFileId":"<uuid>",...}
+url: '{{baseUrl}}/api/companies/me/logo'
+method: PUT
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{ownerAccessToken}}'
+body:
+  type: formdata
+  content:
+    - key: file
+      type: file
+      src: 'postman/files/photo.png'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('logo id set', () => pm.expect(b.logoFileId).to.be.a('string').and.not.empty);
+      pm.collectionVariables.set('companyLogoFileId', b.logoFileId);
+    language: text/javascript
+order: 14530

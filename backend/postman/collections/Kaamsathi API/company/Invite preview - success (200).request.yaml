@@ -1,0 +1,18 @@
+$kind: http-request
+description: |-
+  Accept-invite page reads the invite first (no login): who invited whom, to which company.
+  
+  Expected: 200 {"email":"{{recruiterEmail}}","companyName":"...","invitedBy":"{{companyOwnerEmail}}","expiresAt":"..."}
+url: '{{baseUrl}}/api/auth/invites/{{inviteToken}}'
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('200 OK', () => pm.response.to.have.status(200));
+      const b = pm.response.json();
+      pm.test('invited email + inviter', () => { pm.expect(b.email).to.eql(pm.collectionVariables.get('recruiterEmail')); pm.expect(b.invitedBy).to.eql(pm.collectionVariables.get('companyOwnerEmail')); });
+      pm.test('company + expiry', () => { pm.expect(b.companyName).to.be.a('string').and.not.empty; pm.expect(b.expiresAt).to.be.a('string'); });
+    language: text/javascript
+order: 14610

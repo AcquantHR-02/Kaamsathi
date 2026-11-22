@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  Unknown / used / expired link.
+  
+  Expected: 400 INVALID_LINK
+url: '{{baseUrl}}/api/auth/reset-password/not-a-real-token'
+method: GET
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('400 Bad Request', () => pm.response.to.have.status(400));
+      pm.test('code INVALID_LINK', () => pm.expect(pm.response.json().code).to.eql('INVALID_LINK'));
+    language: text/javascript
+order: 21600

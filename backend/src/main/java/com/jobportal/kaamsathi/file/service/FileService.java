@@ -145,4 +145,10 @@ public class FileService {
         }
         return name.length() > 255 ? name.substring(name.length() - 255) : name;
     }
+
+    // admin user detail
+    @Transactional(readOnly = true)
+    public long countByOwner(UUID ownerId, FileKind kind) {
+        return fileRepository.countByOwnerIdAndKind(ownerId, kind);
+    }
 }
