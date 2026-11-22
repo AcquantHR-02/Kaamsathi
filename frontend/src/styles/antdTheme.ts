@@ -33,7 +33,7 @@ export function getAntdTheme(mode: ThemeMode): ThemeConfig {
       borderRadiusSM: radius.sm,
       borderRadiusLG: radius.lg,
       controlHeight: control.md,
-      controlHeightSM: control.sm - 8,
+      controlHeightSM: control.sm - 8, // 28: compact table rows (user wants 10 rows without scrolling)
       controlHeightLG: control.lg,
       controlOutline: mode === "dark" ? "rgba(201,194,227,.3)" : "rgba(90,59,140,.2)",
       controlOutlineWidth: 3,
@@ -53,6 +53,9 @@ export function getAntdTheme(mode: ThemeMode): ThemeConfig {
         paddingInline: 20,
         paddingInlineLG: 20,
         contentFontSizeLG: 14,
+        // size="small" = compact row actions (28px, 13px, 10px padding).
+        contentFontSizeSM: 13,
+        paddingInlineSM: 10,
       },
       Input: {
         colorBgContainer: c.sunken,

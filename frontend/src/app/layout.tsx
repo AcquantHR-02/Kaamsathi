@@ -18,7 +18,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning: THEME_INIT_SCRIPT sets data-theme before React hydrates.
-    <html lang="en-IN" className={fontVariables} data-theme="dark" suppressHydrationWarning>
+    <html
+      lang="en-IN"
+      className={fontVariables}
+      data-theme="dark"
+      data-scroll-behavior="smooth" // Next turns smooth scrolling off during route changes
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

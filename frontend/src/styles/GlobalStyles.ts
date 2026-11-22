@@ -28,6 +28,15 @@ export const GlobalStyles = createGlobalStyle`
     --motion-slow: ${motion.slow};
     --motion-ease: ${motion.ease};
     color-scheme: dark;
+    /* Signed-in UI scale (use s(px)): templates are 1440 wide; laptops at 150% Windows scaling are
+       ~1280 wide, where 1× looks oversized. 0.9× there, 1× from 1440 up. Phones keep 1× (readability). */
+    --s: 1px;
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --s: clamp(0.9px, calc(100vw / 1440), 1px);
+    }
   }
 
   :root[data-theme="light"] {
@@ -38,6 +47,9 @@ export const GlobalStyles = createGlobalStyle`
   *, *::before, *::after { box-sizing: border-box; }
 
   html, body { margin: 0; padding: 0; }
+
+  /* Side drawers (add / edit / details): never wider than a phone screen. */
+  .ant-drawer-right .ant-drawer-content-wrapper { max-width: 100vw; }
 
   body {
     min-height: 100dvh;

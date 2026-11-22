@@ -56,18 +56,18 @@ One-feature code stays in the feature; import features only via `index.ts`. Lowe
 
 | Module | Endpoints (`/api`) |
 |---|---|
-| auth | signup/seeker\|company, verify-email, resend-otp, login, logout, forgot-password, reset-password · GET/DELETE me · PUT/DELETE me/photo · GET users/{id}/photo · invites (owner), invites/accept |
-| company | POST companies · GET/PUT companies/me · me/recruiters (+DELETE {id}) · me/transfer-ownership · me/subscription · admin: companies/pending, {id}/verify\|reject |
+| auth | signup/seeker\|company, verify-email, resend-otp, login, logout, forgot-password, reset-password · GET/DELETE me · PUT/DELETE me/photo · GET users/{id}/photo · invites (owner), invites/accept, GET invites/{token} (preview) |
+| company | POST companies · GET companies/{id} (public) · GET/PUT companies/me · PUT companies/me/logo · me/recruiters (+DELETE {id}) · me/transfer-ownership · me/subscription · admin: companies/pending, {id}/verify\|reject |
 | masterdata | GET masterdata/{skills,industries,categories,cities}?q · admin …/all, POST, PUT {id}, {id}/activate\|deactivate |
 | job | GET jobs (q, cityId, categoryId, skillId, workMode, jobType, experience, salaryMin, page, size), jobs/{id} · owner/recruiter: POST jobs, jobs/mine, PUT {id}, {id}/close\|reopen · seeker: POST/DELETE {id}/save, jobs/saved · admin/jobs (+block\|unblock) |
 | seeker | GET/PUT seekers/me · PUT/GET seekers/me/resume |
 | application | POST jobs/{id}/apply · applications/mine, applications/{id}, {id}/withdraw · recruiter: jobs/{id}/applications, company/applications/{id} (first open = VIEWED), {id}/resume, {id}/status, {id}/notes, {id}/rating |
 | payment | plans · POST payments (multipart), payments/mine · admin/plans, admin/payments/pending, {id}/approve\|reject |
 | notification | notifications, unread-count, {id}/read, read-all |
-| admin | admin/dashboard, admin/audit-log, admin/users (+suspend/unsuspend/delete), admin/admins |
+| admin | admin/dashboard, admin/audit-log, admin/users (?excludeSelf; +{id}, suspend/unsuspend/delete), admin/admins |
 
 UI rules: show backend statuses as-is; job card employer badge ("Replies to X% within 4 days" / "New employer"); seeker never sees notes/rating; limit errors → friendly message + link to plans/company.
-Gaps (report, don't fix): no public company endpoint, no logo upload, invite preview unverified, ACCOUNT_LOCKED has no unlock time, INVALID_OTP has no tries-left.
+Gaps → `BACKEND_REQUESTS.md` (add new ones there). #1–#14 ✅ pushed (main `232980b`, PR #8) → wire per screen after checking controller + DTO.
 
 ## Design
 - Effects from Skiper UI / Vengeance UI (+ "animeaster", lib unconfirmed): REWRITE in styled-components + Motion in `components/ui/` (no Tailwind), tokens only. Use on Home hero/sections, job/company cards, empty/success states, dashboard numbers; not forms/tables/auth.
@@ -75,8 +75,10 @@ Gaps (report, don't fix): no public company endpoint, no logo upload, invite pre
 - Check: `npx playwright screenshot --viewport-size="1440,900" --color-scheme=dark <url> <scratchpad png>` for template + ours, compare.
 - Tokens (last "comfort layer") live in `styles/tokens.ts`; no hard-coded colours. Fonts Plus Jakarta Sans 15/24, JetBrains Mono.
 - Sizes: inputs/buttons 48px r12; auth card r24 p40 (440/460/480/520 wide); section cards r16; glows blur 100 opacity .18.
+- Signed-in UI: sizes via `s(px)` (`styles/scale.ts`); `--s` = clamp(0.9px, 100vw/1440, 1px) on ≥1024px (user's 150%-scaled laptop ≈1280 wide looked too big at 1×).
 - Auth pages: sizes via `u(px)`; `--u` = clamp(0.8px, min(100dvh/900, 100vw/1440), 1px) on ≥1024px; short screens → tighter spacing, never smaller text (`shortScreen` in `auth.styles.ts`); brand panel hidden <1024px. Logo top-left corner, theme toggle top-right (logo above the card made Register scroll).
 - Feel: no jumps/spinner flashes; skeletons; soft shared motion (`styles/motion.ts`); hover-only scrollbars.
+- **Compact layout (user, all modules):** most info on one screen, no scrolling for a 10-row page. Table full width; add/edit/details in a right **Drawer** (≤440 wide) opened from a PageHeader primary button (header actions top-aligned, 40px = theme toggle); one toolbar row (tabs/filters left, search right); filter Selects = `components/ui/HoverSelect` (open on hover); rows **fit the screen**: `FIT_ROW_HEIGHT` in DataTable = clamp(28px btn + padding, (100dvh − s(262))/10, s(56)) — also on MasterList grid rows; `size="small"` buttons 28px; **10 rows per page**, every table paginated (`Pager` 32px items in card footer; `lib/usePagedList` when the backend returns all). Columns: first left, rest centered (DataTable rule; actions `justify-content: center`). Badges one width (`StatusBadge` min-width s(108), height s(22)). Shell padding 20/32/24, section gaps 16. Own row shown, tagged **ME** (no actions) — user's choice.
 - Shared UI first (`components/ui/`). Forms: inline validation, backend message in FormErrorAlert (place INSIDE the form), trim emails, Save disabled until valid/changed (non-auth), leave warning.
 - In-sentence links get a soft underline (WCAG).
 - Off-screen glows: page wrapper `overflow: clip` (both axes), else they add scroll.
@@ -101,13 +103,14 @@ While building → that module's specs; shared code changed → full suite; rele
 | later | 14-ai-phase7 · 10 EmailTemplates (backend emails) |
 
 ## Progress
-- Branch `feat/frontend-setup`. ✅ 1 Setup · ✅ Playwright (smoke 4/4).
-- ✅ 2.1 Session (live-tested) · ✅ 2.2 Auth API · ✅ 2.3 AuthShell.
-- ✅ 2.4 Sign in (14/14): LoginForm, useLogin (`?next=` same-site, reload to `ROLE_HOME`), AuthNotice (locked/unverified/suspended), utils validation + pendingVerification. `/` → /login until Step 4.
-- ✅ 2.5 Register + OTP (Chromium 10/10; release TODO: Firefox paste test, WebKit hydration race in `fillForm`): RegisterFlow → RegisterForm (AccountTypePicker) · VerifyEmailStep (OtpInput, useCountdown); hooks useSignup, useVerifyEmail (from Sign in: auto-resend). Template ✅.
-- ✅ 2.6 Forgot/Reset (8/8): ForgotPasswordForm (→ inbox notice), ResetPasswordForm (token from `searchParams`; form → done | expired notice on INVALID_LINK/no token; noindex + no-referrer); hooks useForgotPassword, useResetPassword; `repeatPasswordRules`; AuthNotice tone `ok`. Gap: token gives no email → template's masked email line dropped.
-- ✅ 2.7 Accept invite (5/5): `/accept-invite?token=` (backend link), AcceptInviteForm (password + consent → accept → auto login → employer area; expired notice on INVALID_LINK/no token), useAcceptInvite; `utils/completeSignIn` shared with useLogin. Gap: no invite preview → inviter/company/email block dropped.
-- ✅ AUTH MODULE COMPLETE (Step 2).
-- ✅ Big screens: `--u` max 1.25px; AuthShell `fitHeight` (default 900 = Register; Login/Forgot/Reset 700); split layout max-width `u(1360)` centered.
-- 🔨 No-scroll auth pages: logo moved to corner + short-screen spacing. Fits: Login ≥480px tall, Register seeker ≥560. `shortScreen` raised to 720px (company 701–719 fix; not yet re-checked by screenshot). Phones may scroll long forms (OK).
-- Template changes (told user): locked "in 15 minutes"; suspended "Back to sign in" (until Home); theme toggle icon top-right; logo top-left corner (template Register is 996px tall → scrolled); no "tries left".
+- ✅ 1 Setup · ✅ 2 Auth (main `8bbf7e3`) · Step 3 + 7.1–7.3 merged (main `232980b`); later pieces uncommitted: Sign in 14 · Register+OTP 10 · Forgot/Reset 8 · Invite 5. Release TODO: Firefox paste, WebKit hydration race (register spec).
+- ✅ 3.1 proxy guard (5) · ✅ 3.2 SidebarShell/RoleGuard/PageHeader/AccountMenu + placeholder page per nav link (10) · ✅ 3.3 StateCard/ErrorState/404 (1) · ✅ 3.4 ConfirmDialog (title in Modal `title`, `mask={{closable}}`).
+- Sidebar: 216px, collapse to 72px rail (localStorage), link ::before gradient + ::after edge bar on top.
+- Order (user): ADMIN first → 4 Public → 5 Seeker (+top bar, mobile tabs, 3.5 FileUploads) → 6 Employer → notifications last. Step 7: Master data → Plans → Users → Jobs → Companies → Payments → Audit log → Dashboard last.
+- ✅ 7.1 Master data (7): tabs + counts (`?list=`), search in toolbar, inline rename, Hide/Show, add drawer (stays open; city needs State).
+- ✅ 7.2 Plans (6): table + "New plan"/Edit drawer (PlanForm, PlanRequest limits).
+- ✅ 7.3 Users (8): filters → URL, server paging, Suspend/Delete confirm, own row tagged ME, "Add admin" drawer (main admin only + other admins), UserDetailDrawer (row + photo img + audit by targetId).
+- Wiring backend #1–#14 (backend restarted, live): ✅ Users list (company under email, Delete disabled if ownsCompany, `mainAdmin` flag; types AdminUser/AdminUserDetail + audit action/targetType/targetLabel; api `userDetail`) 8/8.
+- Next: UserDetailDrawer → `useUserDetailQuery` (security, activity, consent); audit `targetLabel` in history; master data "Added" (createdAt); auth details.lockedUntil/triesLeft, reset + invite previews; then 7.4 Jobs.
+- Shared: `lib/format` (IST, ₹), `lib/usePagedList`, ui DataTable/Pager/StatusBadge/StatTile/Panel/HoverSelect. Dashboard components drafted, not wired.
+- Auth pages: `--u` max 1.25px, AuthShell `fitHeight`, `shortScreen` 720px (re-check company 701–719). Template changes told: locked "in 15 minutes", logo/toggle corners, no tries-left (now shipped → add).

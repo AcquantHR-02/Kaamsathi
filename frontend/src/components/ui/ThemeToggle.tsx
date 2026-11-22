@@ -10,7 +10,12 @@ export default function ThemeToggle() {
   const next = mode === "dark" ? "light" : "dark";
 
   return (
-    <Button type="button" onClick={() => setThemeMode(next)} aria-label={`Switch to ${next} mode`} title={`${next} mode`}>
+    <Button
+      type="button"
+      onClick={() => setThemeMode(next)}
+      aria-label={`Switch to ${next} mode`}
+      title={`${next} mode`}
+    >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={mode}

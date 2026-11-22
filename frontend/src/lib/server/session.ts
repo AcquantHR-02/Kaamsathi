@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
-import type { ApiError } from "@/types";
+import { ROLE_HOME } from "@/config/constants";
+import type { ApiError, Role } from "@/types";
 
 // Backend-for-Frontend session: the backend's tokens live ONLY in httpOnly cookies set by our
 // Next.js server. Browser code never sees a token; it just calls /api/* on this site.
@@ -33,6 +34,19 @@ export function readTokens(request: NextRequest) {
     access: request.cookies.get(ACCESS_COOKIE)?.value,
     refresh: request.cookies.get(REFRESH_COOKIE)?.value,
   };
+}
+
+/**
+ * Role claim of the access JWT, read WITHOUT checking the signature. Only for optimistic UX
+ * redirects (proxy.ts); every API call is still verified by the backend.
+ */
+export function unverifiedRole(accessToken: string | undefined): Role | null {
+  try {
+    const payload = JSON.parse(Buffer.from(accessToken?.split(".")[1] ?? "", "base64url").toString());
+    return typeof payload.role === "string" && Object.hasOwn(ROLE_HOME, payload.role) ? (payload.role as Role) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function setSessionCookies(response: NextResponse, tokens: TokenResponse): void {

@@ -38,6 +38,8 @@ export const palette = {
     btnPrimaryInk: "#0e0b1d",
     btnPrimaryShadow: "0 6px 18px rgba(227,162,193,.16)",
     gradientText: "linear-gradient(90deg, #c3b6f2, #e3a2c1 55%, #efbf9f)",
+    navActive: "linear-gradient(120deg, rgba(160,140,240,.28), rgba(240,143,182,.18))",
+    navActiveBar: "#f08fb6",
     glowA: "#6a43b0",
     glowB: "#ec6fa5",
   },
@@ -74,6 +76,8 @@ export const palette = {
     btnPrimaryInk: "#ffffff",
     btnPrimaryShadow: "0 8px 24px rgba(90,59,140,.3)",
     gradientText: "linear-gradient(90deg, #5a3b8c, #a23a68)",
+    navActive: "linear-gradient(120deg, #ebe6f7, #fde4ee)",
+    navActiveBar: "#b8336a",
     glowA: "#6a43b0",
     glowB: "#ec6fa5",
   },
@@ -84,6 +88,8 @@ export type PaletteKey = keyof (typeof palette)["dark"];
 /** Fixed brand colours (same in both themes). */
 export const brand = {
   logo: "linear-gradient(135deg, #7b62c4, #d48fb2)",
+  /** Soft tile behind state / notice icons (template 12-common/States .ic). */
+  iconBg: "linear-gradient(135deg, rgba(165,150,230,.2), rgba(227,162,193,.14))",
   purple900: "#0e0b1d",
   purple800: "#2a1e4d",
   purple600: "#5a3b8c",
